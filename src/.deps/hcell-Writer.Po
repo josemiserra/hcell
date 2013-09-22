@@ -1,0 +1,3 @@
+src/hcell-Writer.o: src/Writer.cpp src/Writer.h
+
+src/Writer.h:

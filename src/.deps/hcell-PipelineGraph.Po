@@ -1,0 +1,19 @@
+src/hcell-PipelineGraph.o: src/PipelineGraph.cpp src/PipelineGraph.h \
+ src/Action.h src/MType.h src/MAllTypes.h src/utils.h src/PModule.h \
+ src/PoolManager.h src/Slot.h
+
+src/PipelineGraph.h:
+
+src/Action.h:
+
+src/MType.h:
+
+src/MAllTypes.h:
+
+src/utils.h:
+
+src/PModule.h:
+
+src/PoolManager.h:
+
+src/Slot.h:
