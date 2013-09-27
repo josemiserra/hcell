@@ -4,6 +4,7 @@
 #include "SegmentationProcessing.h"
 #include "ComputeFeatures.h"
 #include <memory>
+#include "utils.h"
 
 class ModuleSelector
 {

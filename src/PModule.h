@@ -276,7 +276,13 @@ static void getContours(vloP &objects_in,vloP &contours,unsigned int rows, unsig
 	 sprintf(buffer,"%d", n);
 	 strcat(buffer,name);
 	 return buffer; */
-	 newname = std::to_string(n);
+
+#if GCC_VERSION > 40600
+		newname = std::to_string(n);
+#else
+		newname = std::to_string(static_cast<long long>(n));
+#endif
+
 	 newname.append(name);
 	 return;
 

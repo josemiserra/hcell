@@ -98,11 +98,25 @@ of `autoconf'.
 
   OPENCV requirements
 ==========================
-OpenCV libraries must be installed. 
-   Ubuntu/Debian sudo apt-get install opencv
+OpenCV libraries should be installed. We recommend a version >=2.4.6. For installing follow the
+next steps: 
+   	Ubuntu/Debian sudo apt-get install opencv
    		 sudo apt-get install libopencv-dev
 
- If you have download, compiled and installed the library in a different directory, or in a way that is not installed as a package, you can give `configure' initial values for configuration parameters
+or
+  go to the webpage opencv.org/downloads and download and compile the opencv library.
+  Untar the opencv library in other folder:
+	Ubuntu/Debian sudo apt-get install cmake-curses-gui
+  That will install the command line gui for cmake.
+	mkdir opencv_ext
+	cd opencv_ext
+	ccmake directory_where_you_placed_opencv/opencv-2.4.6
+  Then push 'c' to refresh ccmake cache. Push it again and check if there is a missing dependency.
+You also can choose if you want to compile libtiff, libpng and libjpeg. If you have Qt installed you can choose it giving the right paths, and then use it as a window system for HCell. After that generate the libraries pushing 'g'.
+	Then, simply do :
+	make & make install
+   
+ If you have download, compiled and installed the library in a different directory than the prefix, you can give `configure' initial values for configuration parameters
 by setting the next variables:
 
      ./configure OPENCV_include_path="/home/usr/local/include"  OPENCV_library_path="/home/usr/local/lib"

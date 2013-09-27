@@ -1,0 +1,4 @@
+VERSION 0.5.1 
+	- Scalar and Matrix operators added
+	- New normalization function with max and min parameters.
+	- GCC 4.4 backwards compatibility added

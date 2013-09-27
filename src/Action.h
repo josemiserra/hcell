@@ -9,8 +9,21 @@
 #include "MType.h"
 #include "MAllTypes.h"
 #include "PModule.h"
+#include "utils.h"
 
 using namespace std;
+
+
+#if GCC_VERSION < 40500
+struct less_than_tag
+{
+    inline bool operator() ( MType *a, MType *b)
+    {
+        return (a->getTag() < b->getTag());
+    }
+};
+#endif
+
 
 class Action
 {
@@ -68,7 +81,12 @@ std::vector<MType *> parseParams(const char **nparams,const char **params,int co
 void sortParams()
 {
 	sort(_nameParams.begin(),_nameParams.end());
+
+#if GCC_VERSION > 40500  // for lambda expression
 	sort(_realParams.begin(), _realParams.end(), [](MType *a, MType  *b) -> bool { return a->getTag()<b->getTag(); });
+#else
+	sort(_realParams.begin(), _realParams.end(),less_than_tag());
+#endif
 }
 
 

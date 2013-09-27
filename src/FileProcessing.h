@@ -205,16 +205,19 @@ void _normalize(std::vector<MType *> parValues, unsigned int pid)
 {
 	   bool ashow =  (dynamic_cast<MBoolType*>(parValues[0]))->getValue(); // showImage (ASHOW)
 	   string input= (dynamic_cast<MStringType*>(parValues[1]))->getValue(); //input
-	   string output	= (dynamic_cast<MStringType*>(parValues[2]))->getValue();  // imageName (output>
-	   string itype	= (dynamic_cast<MStringType*>(parValues[3]))->getValue(); // Type of normalization (max/min, log...)
-	   const char *wName	= (dynamic_cast<MStringType*>(parValues[4]))->getValue(); // windowName
+	   double maxint = (dynamic_cast<MDoubleType*>(parValues[2]))->getValue();
+	   double minint = (dynamic_cast<MDoubleType*>(parValues[3]))->getValue();
+	   string output	= (dynamic_cast<MStringType*>(parValues[4]))->getValue();  // imageName (output>
+	   string itype	= (dynamic_cast<MStringType*>(parValues[5]))->getValue(); // Type of normalization (max/min, log...)
+	   const char *wName	= (dynamic_cast<MStringType*>(parValues[6]))->getValue(); // windowName
+
 
 	   this->combnames(input,pid,input);
 	   this->combnames(output,pid,output);
 
 
 	   int type = normType[itype];
-	   __normalize(input.c_str(),output.c_str(),type);
+	   __normalize(input.c_str(),output.c_str(),type,maxint,minint);
 
 	   if(ashow)
 		{
@@ -224,7 +227,7 @@ void _normalize(std::vector<MType *> parValues, unsigned int pid)
 
 
 }
-void __normalize(const char* input, const char* output,int opt){
+void __normalize(const char* input, const char* output,int opt,double maxint=1.0,double minint=0.0){
 	 
 	 ut::Trace tr = ut::Trace("normalize",__FILE__);
 
@@ -239,6 +242,7 @@ void __normalize(const char* input, const char* output,int opt){
 
 	 double min;
 	 double max;
+
 	 minMaxIdx(*image, &min, &max);
 
  // The convertScaleAbs function performs 3 operations: scale, compute absolute value, and convert to unsigned 8-bit type.
@@ -248,27 +252,62 @@ void __normalize(const char* input, const char* output,int opt){
     Mat image2;
 	int type = image->type();
 	
-	if(opt == NORM::LOG) 
-	{
-		image->convertTo(image2, CV_32F);
 
-		for( int y = 0; y < image->rows; y++ )
-		  for( int x = 0; x < image->cols; x++ )
+	if(maxint>1) tr.message("WARNING: maxint must be between 0 and 1");
+	if(minint>1 || minint > maxint) tr.message("WARNING: maxint must be between 0 and 1 and less than maxint.");
+
+	if(opt == NORM::MAXMIN)
+	{
+
+		if(maxint<1 || minint>0)
+		{
+			double top=1.0;
+			if(type==CV_8U) top = 255.0;
+			if(type==CV_16U)  top = 65535.0;
+			image->convertTo(image2, CV_32F);
+
+			for( int y = 0; y < image->rows; y++ )
+			 for( int x = 0; x < image->cols; x++ )
               {
-				image2.at<float>(y,x)=((image2.at<float>(y,x))/(max));
-				image2.at<float>(y,x)= 1-(log(image2.at<float>(y,x))/log(min/max));
-             }
- 
-		 if(type==CV_8U) image2.convertTo(*image,type,255,0);
-		 if(type==CV_16U) image2.convertTo(*image,type,65535,0);
-   
+				image2.at<float>(y,x)=image2.at<float>(y,x)/top;
+				if(image2.at<float>(y,x)>maxint) image2.at<float>(y,x)=maxint;
+				if(minint>0.0) image2.at<float>(y,x)=image2.at<float>(y,x)-minint;
+				if(image2.at<float>(y,x)<0) image2.at<float>(y,x)=0;
+				image2.at<float>(y,x)=image2.at<float>(y,x)/(maxint-minint);
+			   }
+
+		if(type==CV_8U)	  image2.convertTo(image2,CV_8UC1,255,0);
+		if(type==CV_16U)  image2.convertTo(image2,CV_16UC1,65535,0);
+		}
+		else
+		{
+			if(type==CV_8U)
+			{
+			image->convertTo(image2,CV_8UC1,255.0/(max - min), -min * 255.0/(max - min));
+			}
+			if(type==CV_16U)
+			{
+			image->convertTo(image2,CV_16UC1, 65535.0/(max - min), -min *  65535.0/(max- min));
+			}
+		}
 	}
 	else
 	{
-	
-	   if(type==CV_8U) image->convertTo(image2,CV_8UC1,255.0/(max - min), -min * 255.0/(max - min));
-	   if(type==CV_16U) image->convertTo(image2,CV_16UC1,65535.0/(max - min), -min * 65535.0/(max- min));
 
+		if(opt == NORM::LOG)
+		{
+		image->convertTo(image2, CV_32F);
+		for( int y = 0; y < image->rows; y++ )
+			for( int x = 0; x < image->cols; x++ )
+				{
+				image2.at<float>(y,x)=image2.at<float>(y,x)/max;
+				image2.at<float>(y,x)= 1-(log(image2.at<float>(y,x))/log(min/max));
+				}
+ 
+	 if(type==CV_8U) image2.convertTo(image2,type,255,0);
+	 if(type==CV_16U) image2.convertTo(image2,type,65535,0);
+   
+		}
 	}
 
 	 pool->storeImage(image2,output);

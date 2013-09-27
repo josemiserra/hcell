@@ -9,6 +9,19 @@ using namespace cv;
 using namespace std;
 #define IJK(i,j) ((i)*nx+(j))
 
+// #if GCC_VERSION < 40500
+
+struct less_than_index
+{
+    inline bool operator() ( int i1, int i2)
+    {
+        return  i1 < i2;
+    }
+};
+// #endif
+
+
+
 template <typename T>
 	vector<int> sorted_indexes(const vector<T> &v)
 	{
@@ -18,8 +31,16 @@ template <typename T>
 	for (unsigned int i = 0; i != idx.size(); ++i) idx[i] = i;
 
 	// sort indexes based on comparing values in v
-	sort(idx.begin(), idx.end(),
-    [&v](int i1, int i2) {return v[i1] < v[i2];});
+// #if GCC_VERSION > 40500  // for lambda expression
+//	sort(idx.begin(), idx.end(),
+//	    [&v](int i1, int i2) {return v[i1] < v[i2];});
+//#else
+	sort(idx.begin(), idx.end(),less_than_index());
+//#endif
+
+
+
+
 
 	return idx;
 	}

@@ -1,6 +1,30 @@
 #ifndef _UTILS_
 #define _UTILS_
 
+
+#define GCC_VERSION (__GNUC__ * 10000 \
+                               + __GNUC_MINOR__ * 100 \
+                               + __GNUC_PATCHLEVEL__)
+
+#if GCC_VERSION < 40600
+	const                        // this is a const object...
+		class {
+			public:
+				template<class T>          // convertible to any type
+				operator T*() const      // of null non-member
+				{ return 0; }            // pointer...
+				template<class C, class T> // or any type of null
+				operator T C::*() const  // member pointer...
+				{ return 0; }
+			private:
+				void operator&() const;    // whose address can't be taken
+				} nullptr = {};              // and whose name is nullptr
+#endif
+
+
+
+
+
 // #define _MY_DEBUG_
 
 #ifdef WIN32
@@ -17,6 +41,8 @@
 #include <vector>
 #include <opencv2/opencv.hpp>
 // #include <opencv/highgui.h>
+
+
 
 using namespace cv;
 using namespace std;

@@ -27,7 +27,9 @@ Action::TypesMap Action::initialize(){
 	 amap["APPEND_DATE"]=boolT;
 	 amap["APPEND_ORIGINAL_NAME"]=boolT;
 /**NORMALIZE**/
-	 amap["TYPE"]=stringT;
+	 	 amap["TYPE"]=stringT;
+	 	 amap["MAXINT"]=doubleT;
+	 	 amap["MININT"]=doubleT;
 
 /**CROP_FILE**/
 	amap["COORDINATES_X"]=intT;
@@ -141,5 +143,9 @@ Action::TypesMap Action::initialize(){
 	amap["MINIMUM"]=intT;
 	amap["MAXIMUM"]=intT;
 	amap["BY"]=stringT;
+
+	/**OPERATORS **/
+	amap["FACTOR"]=doubleT;
+
 	return amap;
 }

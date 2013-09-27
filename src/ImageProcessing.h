@@ -17,10 +17,16 @@ using namespace cv;
 using namespace std;
 
 enum FLAGS{ THRESHFLAGS=0, ADAPT_THRESHFLAGS=50, BRUSHFLAGS= 100, MORPHFLAGS=200, CONTOURFLAGS=300, 
-			CONTOURFLAGS_2=350, };
+			CONTOURFLAGS_2=350, SCALAR_FLAGS = 450, MAT_FLAGS = 500 };
 
 enum SHAPE{ GAUSSIAN=25, DIAMOND=26 };
+
 enum OPS{ LAPLACIAN, SOBEL, SCHARR, CANNY};
+
+enum SCALAR_OPS{ SUM, DIFF, DIV, MULT, POWER, INV};
+
+enum MAT_OPS{ MOR, MXOR, MAND, MSUM, MDIFF, MDIV, MMULT};
+
 
 class ImageProcessing :
 	public PModule
@@ -51,6 +57,9 @@ public:
 		tFunc["FILTER2D"]=&ImageProcessing::_filter2D;
 		tFunc["ADAPTATIVE THRESHOLD"]=&ImageProcessing::_adaptativethreshold;
 		tFunc["FLOODFILL"]=&ImageProcessing::_floodfill;
+		tFunc["SCALAR OPERATION"]=&ImageProcessing::_scalarOp;
+		tFunc["MATRIX OPERATION"]=&ImageProcessing::_matOp;
+
 		///---- FLAGS MAP----///
 		/**THRESHOLDING**/
 		eMap["THRESH_BINARY"]=THRESH_BINARY+FLAGS::THRESHFLAGS;
@@ -89,6 +98,22 @@ public:
 		/**ADAPTATIVE THRESHOLDING**/
 		eMap["MEAN"]=ADAPTIVE_THRESH_MEAN_C +FLAGS::ADAPT_THRESHFLAGS;
 		eMap["GAUSSIAN"]=ADAPTIVE_THRESH_GAUSSIAN_C+FLAGS::ADAPT_THRESHFLAGS;
+
+		/**OPERATORS**/
+				eMap["SUM"] = SCALAR_FLAGS + SUM;
+				eMap["DIFF"] = SCALAR_FLAGS + DIFF;
+				eMap["DIV"] = SCALAR_FLAGS + DIV;
+				eMap["MULT"] = SCALAR_FLAGS + MULT;
+				eMap["POWER"] = SCALAR_FLAGS + POWER;
+				eMap["INV"] = SCALAR_FLAGS + INV;
+
+			    eMap["MOR"] = MAT_FLAGS + MOR;
+				eMap["MXOR"] = MAT_FLAGS + MXOR;
+				eMap["MAND"] = MAT_FLAGS + MAND;
+				eMap["MSUM"] = MAT_FLAGS + MSUM;
+				eMap["MDIFF"] = MAT_FLAGS + MDIFF;
+				eMap["MDIV"] =  MAT_FLAGS + MDIV;
+				eMap["MMULT"] = MAT_FLAGS + MMULT;
 
 	};
 	~ImageProcessing(void){};
@@ -1370,6 +1395,181 @@ void kernelToDiamond(Mat &ker){
 }
 
 
+/*****OPERATORS************************************************/
+/****************************************************************************
+ * SCALAR
+ * ----------------------------
+ *
+ *
+ ***************************************************************************/
+
+void _scalarOp(std::vector<MType *> parValues, unsigned int pid){
+
+	  bool a0 =  (dynamic_cast<MBoolType*>(parValues[0]))->getValue(); // showImage (ASHOW)
+
+	  double factor	= (dynamic_cast<MDoubleType*>(parValues[1]))->getValue(); // brushName
+      string input	= (dynamic_cast<MStringType*>(parValues[2]))->getValue(); // input image
+	  int iter = (dynamic_cast<MIntType*>(parValues[3]))->getValue();
+	  string soperation = (dynamic_cast<MStringType*>(parValues[4]))->getValue(); // operation type
+	  string output	= (dynamic_cast<MStringType*>(parValues[5]))->getValue();  // output name
+	  const char* wName	= (dynamic_cast<MStringType*>(parValues[6]))->getValue(); // windows name
+
+	  this->combnames(input,pid,input);
+	  this->combnames(output,pid,output);
+
+     int operation = eMap[soperation];
+	 this->__scalarOp(input.c_str(),output.c_str(),factor,operation,iter);
+
+	  if(a0){
+		 this->display(output,wName);
+	  }
+
+};
+
+/*
+
+*/
+
+int __scalarOp(const char* input,const char* output,double factor, int operation, int iter){
+	 ut::Trace tr = ut::Trace("Scalar op",__FILE__);
+
+	Mat *src;
+	operation = operation-FLAGS::SCALAR_FLAGS;
+	src = pool->getImage(input);
+
+	Mat op;
+	src->copyTo(op);
+
+	int count=0;
+	while(count<iter){
+
+		switch(operation)
+		{
+			case(SUM):
+						op += factor;
+						break;
+			case(DIFF):
+						absdiff(op,factor,op);
+					   break;
+			case(DIV):
+						op /= factor;
+						break;
+			case(MULT):
+					   op *=  factor;
+					   break;
+			case(POWER):{
+						if(count==0) op.convertTo(op, CV_32F);
+						if(src->type()==CV_16U) op/=65535;
+						else op/=255;
+						pow(op,factor,op);
+					    double min;
+						double max;
+						minMaxIdx(op, &min, &max);
+						if(src->type()==CV_8U) op.convertTo(op,CV_8UC1,255.0/(max - min), -min * 255.0/(max - min));
+						if(src->type()==CV_16U) op.convertTo(op,CV_16UC1,65535.0/(max - min), -min * 65535.0/(max - min));
+						break;
+						}
+			 case(INV):{
+					   if(op.type()==CV_8U)  op= 255 - op;
+					   if(op.type()==CV_16U) op= 65535 - op;
+					   if(op.type()==CV_32F) op=1 - op ;
+					   break;
+						}
+			default:
+					break;
+		}
+		count++;
+	}
+
+	pool->storeImage(op,output);
+	return 0;
+};
+
+/****************************************************************************
+ * Matrix Operations
+ * ----------------------------
+ *
+ *
+ ***************************************************************************/
+
+void _matOp(std::vector<MType *> parValues, unsigned int pid){
+
+	  bool a0 =  (dynamic_cast<MBoolType*>(parValues[0]))->getValue(); // showImage (ASHOW)
+
+	  string input1	= (dynamic_cast<MStringType*>(parValues[1]))->getValue(); // brushName
+      string input2	= (dynamic_cast<MStringType*>(parValues[2]))->getValue(); // input image
+	  int iter = (dynamic_cast<MIntType*>(parValues[3]))->getValue();
+	  string soperation = (dynamic_cast<MStringType*>(parValues[4]))->getValue(); // operation type
+	  string output	= (dynamic_cast<MStringType*>(parValues[5]))->getValue();  // output name
+	  const char* wName	= (dynamic_cast<MStringType*>(parValues[6]))->getValue(); // windows name
+
+	  this->combnames(input1,pid,input1);
+	  this->combnames(input2,pid,input2);
+	  this->combnames(output,pid,output);
+
+     int operation = eMap[soperation];
+	 this->__matOp(input1.c_str(),input2.c_str(),output.c_str(),operation,iter);
+
+	  if(a0){
+		 this->display(output,wName);
+	  }
+
+};
+
+/*
+
+*/
+
+int __matOp(const char* input1,const char* input2,const char* output, int operation, int iter){
+	 ut::Trace tr = ut::Trace("Scalar op",__FILE__);
+
+	Mat *src1, *src2;
+	operation = operation-FLAGS::MAT_FLAGS;
+	src1 = pool->getImage(input1);
+	src2 = pool->getImage(input2);
+	Mat op1,op2;
+	src1->copyTo(op1);
+	src2->copyTo(op2);
+
+	int count=0;
+	while(count<iter){
+
+		switch(operation)
+		{
+			case(MOR):{
+						op1 |= op2;
+					   break;
+						}
+			case(MAND):{
+						op1 &= op2;
+					   break;
+						}
+			case(MXOR):{
+						bitwise_xor(op1,op2,op1);
+					   break;
+						}
+		    case(MSUM):
+						op1 += op2;
+						break;
+			case(MDIFF):
+						absdiff(op1,op2,op1);
+					   break;
+			case(MDIV):
+						op1 /= op2;
+						break;
+			case(MMULT):
+					   op1 *=  op2;
+					   break;
+
+			default:
+					break;
+		}
+		count++;
+	}
+
+	pool->storeImage(op1,output);
+	return 0;
+};
 
 
 

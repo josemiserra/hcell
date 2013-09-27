@@ -109,7 +109,7 @@ void __basicfeatures(const char* objects, const char* ref,const char* absref, bo
 		Mat *_ref = pool->getImage(ref);
 		vector<double> gvals;
 		vector<vector<double>> indvals;
-		bitset<4> options("0000");
+		bitset<4> options(string("0000"));
 		FeaturesPipe *fp;
 		// The absolute reference of the image is used for indexing the file to which write the features
 		fp = this->featureWriter->getFeaturePipe(absref);
@@ -163,7 +163,7 @@ void __shapefeatures(const char* objects, const char* ref,const char *absref, bo
 		Mat *_ref = pool->getImage(ref);
 		vector<double> gvals;
 		vector<vector<double>> indvals;
-		bitset<4> options("0000");
+		bitset<4> options(string("0000"));
 		FeaturesPipe *fp;
 		fp = this->featureWriter->getFeaturePipe(absref);
 
@@ -219,7 +219,7 @@ void __momentfeatures(const char* objects, const char* ref, const char* absref,b
 		Mat *_ref = pool->getImage(ref);
 		vector<double> gvals;
 		vector<vector<double>> indvals;
-		bitset<4> options("0000");
+		bitset<4> options(string("0000"));
 		FeaturesPipe *fp;
 		fp = this->featureWriter->getFeaturePipe(absref);
 
