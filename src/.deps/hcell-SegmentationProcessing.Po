@@ -1,7 +1,7 @@
 src/hcell-SegmentationProcessing.o: src/SegmentationProcessing.cpp \
  src/SegmentationProcessing.h src/PModule.h src/PoolManager.h src/utils.h \
  src/Slot.h src/MType.h src/MAllTypes.h src/WatershedSegmenter.h \
- src/PriorityQueue.h src/proctools.h
+ src/proctools.h
 
 src/SegmentationProcessing.h:
 
@@ -18,7 +18,5 @@ src/MType.h:
 src/MAllTypes.h:
 
 src/WatershedSegmenter.h:
-
-src/PriorityQueue.h:
 
 src/proctools.h:

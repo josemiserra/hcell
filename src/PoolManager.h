@@ -5,11 +5,12 @@
 #include <iostream>
 #include <functional>
 #include <memory>
+#include <map>
 #include <string>
 #include "utils.h"
 #include "Slot.h"
 #include "MType.h"
-
+#include <limits>
 
 using namespace cv;
 
@@ -23,7 +24,8 @@ class PoolManager
 
 		static vector<shared_ptr<Slot<Mat>>> imagesPool;
 		static vector<shared_ptr<Slot<vloP>>> objectsPool;
-		
+		static map<string, double> factorsPool;
+
 		static int numImages;
 		static int maxImages; 
 		static int numObjects;
@@ -84,10 +86,8 @@ class PoolManager
         }
 
 		~PoolManager(){
-			     std::cout<<"Destroy pool!"<<std::endl;
+			  //   std::cout<<"Pool Destroyed!"<<std::endl;
 			}
-
-
 
 
 		static void createImagePool(int pool_size)
@@ -139,7 +139,7 @@ class PoolManager
 			PoolManager::numImages++;
 			return sp1;
 		}
-
+		return NULL;
     	}
 
 
@@ -166,8 +166,11 @@ class PoolManager
 		   return sp1;
 		}
 
+			return NULL;
         }
 
+	/************************************************************************************************/
+  
 
 /****************************************************************************
  * cleanPool
@@ -189,6 +192,8 @@ class PoolManager
 				{
 					shared_ptr<Slot <vloP>> T =objectsPool.back();
 					T->getValue()->clear();
+					// while(!T->getValue()->empty()) T->getValue()->pop_back();
+					objectsPool.pop_back();
 				}
 			  if(!objectsPool.empty())
 			  {
@@ -200,6 +205,8 @@ class PoolManager
 			imagesPool.reserve(PoolManager::maxImages);
 			objectsPool.reserve(PoolManager::maxObjects);
 			}
+
+			PoolManager::factorsPool.clear();
 		}
 
 
@@ -273,7 +280,34 @@ inline int storeImage(Mat &image,const char *output){
 			return 0;
 		}
 
+/****************************************************************************
+ * GET FACTOR
+ * ----------------------------
+ *  
+ *
+ ***************************************************************************/
+		inline double getFactor(const char *input,const char* ref)
+		{
+			std::map<string,double>::iterator it;
+			double factor;
+			it=this->factorsPool.find(input);
+			if(it!=factorsPool.end()) return (*it).second;
+			else
+			factor = atof(string(ref).c_str());
+			return factor;
+		}
 
+
+/****************************************************************************
+ * STORE FACTOR
+ * ----------------------------
+ *  
+ *
+ ***************************************************************************/
+		inline int storeFactor(double factor,const char *output){
+			factorsPool[output]=factor;
+			return 0;
+		}
 
 };
 

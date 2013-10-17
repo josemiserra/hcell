@@ -1,5 +1,4 @@
-
-#include <regex>
+#include <boost/regex.hpp>
 #include <sys/types.h>
 #include <dirent.h>
 #include <errno.h>
@@ -13,15 +12,6 @@
 #include "utils.h"
 #include "Writer.h"
 #include "ComputeFeatures.h"
-
-
-#ifdef _WIN32
-    #include <unordered_map>
-    #include <memory>
-#else
-    #include <tr1/unordered_map>
-    #include <tr1/memory>
-#endif
 
 using namespace std;
 
@@ -53,13 +43,20 @@ void Pipeline::preparePipeline(void){
 
 	// This function takes an actions list and build a graph based on it
 	// Under development for next versions. Now empty.
-	this->_pgraph.buildgraph();
-
-	bool basic,shape, moment, haralick, others;
+    this->_pgraph.buildgraph();
+	
+	bool set_all = false;
+	bool a_basic=false;
+	bool a_moment=false;
+	bool a_shape=false;
+	bool a_haralick=false;
+	int total_c;
+	string n_name("HAR_");
+	bool basic,shape, moment, haralick, all;
 	string myRegExp;
 	string fname;
 	string action_name;
-	string hname;
+	string oname;
 
 	int ca = 0;
 	bitset<BIT_OPTIONS> opts;
@@ -105,9 +102,9 @@ void Pipeline::preparePipeline(void){
 		 {
 			 
 			 string wdate  ="";
-			 string wappend ="";
+			 vector<string> wappend;
 			 string foutput_name;
-			 const char* reference;
+			 string reference;
 			 bool append = false;
 			 bool counter = true;
 			 parameterNames=&(*it)->getParameterNames();
@@ -131,7 +128,7 @@ void Pipeline::preparePipeline(void){
 					    if((dynamic_cast<MBoolType *>(*par_it))->getValue())
 					    {
 						append = true;
-						counter = false;
+						//counter = false;
 						}
 					}
 					if((*parn_it).compare("FOUTPUT")==0)
@@ -141,16 +138,16 @@ void Pipeline::preparePipeline(void){
 					if((*parn_it).compare("INPUT")==0)
 					{
 						  reference=(dynamic_cast<MStringType *>(*par_it))->getValue();
-						  reference = this->_pgraph.traceBack(string(reference),*(*it)).c_str();
+						  // reference = this->_pgraph.traceBack(string(reference),*(*it)).c_str();
 					 }
 				}
 			
 			 if(append){
-				wappend = reference;
+				getCommon(_filestoLoad,wappend);
 			 }
 			
 			 int total_files_out = _filestoLoad[0].size();
-			 _filestoSave.push_back(this->generateOutputFileNames(*_inpval.outdir,foutput_name.c_str(),wappend.c_str(),wdate.c_str(),counter,total_files_out));
+			 _filestoSave.push_back(this->generateOutputFileNames(*_inpval.outdir,foutput_name.c_str(),wappend,wdate.c_str(),counter,total_files_out));
 			
 
 			 event_sequence[ca]= FUNCTIONS::WRITE_FILE;
@@ -169,15 +166,56 @@ void Pipeline::preparePipeline(void){
 			shape = action_name.compare("SHAPE")==0;
 			moment = action_name.compare("MOMENT")==0;
 			haralick = action_name.compare("HARALICK")==0;					
-			others = action_name.compare("OTHERS")==0;
+			all = action_name.compare("ALL FEATURES")==0;
 						
 			// check if my action in the list is a write file
-			if( basic | shape | moment | haralick |others) 
+			if( basic | shape | moment | haralick |all) 
 			{
 			 features_found=true;
 			 parameterNames=&(*it)->getParameterNames();
 			 parameterValues = &(*it)->getParameters();
 			
+			if(all)
+			 {
+				total_c=0;
+				event_sequence[ca]= FUNCTIONS::ALL;
+				for(parn_it=parameterNames->begin(),par_it = parameterValues->begin();
+				parn_it!=parameterNames->end();
+				parn_it++,par_it++)
+				{
+					
+					if((*parn_it).compare("BASIC")==0) 
+					{ 
+						a_basic=((dynamic_cast<MBoolType *>(*par_it))->getValue()); 
+						total_c++;
+						opts|=opts.set(0);
+						opts|=opts.set(1);
+						opts|=opts.set(2);
+						opts|=opts.set(3);
+					}
+					if((*parn_it).compare("MOMENT")==0)
+					{ 
+						a_moment=((dynamic_cast<MBoolType *>(*par_it))->getValue());
+						total_c+=2;
+						opts|=opts.set(8);
+						opts|=opts.set(9);
+						opts|=opts.set(10);
+						opts|=opts.set(11);
+					
+					}
+					if((*parn_it).compare("SHAPE")==0)
+					{
+						a_shape=((dynamic_cast<MBoolType *>(*par_it))->getValue()); 
+						total_c++;
+						opts|=opts.set(4);
+						opts|=opts.set(5);
+						opts|=opts.set(6);
+						opts|=opts.set(7);								
+					}
+					if((*parn_it).compare("HARALICK")==0){ a_haralick=((dynamic_cast<MBoolType *>(*par_it))->getValue());  }
+				}
+				set_all = true;
+			 }
 			 if(basic)
 			 {
 						event_sequence[ca]= FUNCTIONS::BASIC;
@@ -198,15 +236,11 @@ void Pipeline::preparePipeline(void){
 				 event_sequence[ca]= FUNCTIONS::HARALICK;
 				// Texture files saved individually
 			 }
-			 if(others)
-			 {
-				 event_sequence[ca]= FUNCTIONS::OTHERS;	
-				 // to determine
-			 }
 			 
 			 string origin;
-			 string wdate  ="";
-			 string wappend ="";
+			 string wdate;
+			 vector<string> wappend;
+			 
 			 string foutput_name;
 			 string ref;
 
@@ -232,17 +266,16 @@ void Pipeline::preparePipeline(void){
 					    if((dynamic_cast<MBoolType *>(*par_it))->getValue())
 						{
 						append = true;
-						counter = false;
+						//counter = false;
 						}
 					}
 					if((*parn_it).compare("FOUTPUT")==0)
 					{
-						hname=(dynamic_cast<MStringType *>(*par_it))->getValue();
-
-						 
+						fname=(dynamic_cast<MStringType *>(*par_it))->getValue();
 						 str.append(this->_inpval.outdir);
 						 str.append("/");
-						 str.append(hname);
+						 oname.append(str);
+						 oname.append(fname);
 
 
 					 }
@@ -257,52 +290,80 @@ void Pipeline::preparePipeline(void){
 
 				} // endfor
 
+				
+				  if(all)
+			   {
+			    haralick = a_haralick;
+			    basic= a_basic;
+				shape= a_shape;
+				moment= a_moment;
+				
+			   }  
 
 			   if(haralick)
 			   {
 
 				        vector<string> wh_filestoSaveFeatures;
-				        wh_filestoSaveFeatures=(this->generateOutputFileNames(*_inpval.outdir,"FEATURES_HARALICK",wappend.c_str(),wdate.c_str(),counter,_filestoLoad[0].size()));
+						if(append) getCommon(_filestoLoad,wappend);
+				        wh_filestoSaveFeatures=(this->generateOutputFileNames(*_inpval.outdir,"FEATURES_HARALICK",wappend,wdate.c_str(),counter,_filestoLoad[0].size()));
 
 				        FeaturesPipe *fhar = new FeaturesPipe;
 						fhar->_count=0;
-						fhar->setReference(hname);
+						if(all)
+						{ 
+							n_name.append(fname);
+							fhar->setReference(n_name);
+						} else
+						{	
+							fhar->setReference(fname);
+						}
 						fhar->_total=1;
 						fhar->_fcount=0;
 						for (vector<string>::iterator it = wh_filestoSaveFeatures.begin() ; it != wh_filestoSaveFeatures.end(); ++it)
 						{
 												   fhar->_ind_filenames.push_back((*it));
 						}
-						 npipes.insert(std::pair<string,FeaturesPipe*>(hname,fhar));
+						
+					if(all)
+						 {
+							
+							npipes.insert(std::pair<string,FeaturesPipe*>(n_name,fhar));
+						 }
+						 else
+							 npipes.insert(std::pair<string,FeaturesPipe*>(fname,fhar));
 						 haralick=false;
 				   }
 
 
-		else{
+		
 			 // If we already have created the filenames, we dont want to do it again
 			 // The reference parameter serves as a reference
-			if(npipes.count(ref)==0)
+	
+if(basic | shape | moment){
+	if(npipes.count(fname)==0)
 			 {
 				  
 				   if(append)
 					{
-						wappend = ref;
+						getCommon(_filestoLoad,wappend);
 						// get the original file name
 					}
 				   vector<string> _filestoSaveFeatures;
 					
-					_filestoSaveFeatures=(this->generateOutputFileNames(*_inpval.outdir,"FEATURES",wappend.c_str(),wdate.c_str(),counter,_filestoLoad[0].size()));
+					_filestoSaveFeatures=(this->generateOutputFileNames(*_inpval.outdir,"FEATURES",wappend,wdate.c_str(),counter,_filestoLoad[0].size()));
 					
 
 				   FeaturesPipe *fp = new FeaturesPipe;
 				   fp->_count=0;
 				   fp->_options = opts;
-				   fp->setReference(ref);
-				   fp->setGenFilename(str);
+				   if(all)  fp->_options = opts;
+				   fp->setReference(fname);
+				   fp->setGenFilename(oname);
 				   fp->fgout.open(fp->_gen_filename);
 				   fp->_total=1;
+				    if(all) fp->_total = total_c;
 				   fp->_fcount=0;
-				   npipes.insert(pair<string,FeaturesPipe*>(ref,fp));
+				   npipes.insert(pair<string,FeaturesPipe*>(string(fname),fp));
 
 					for (vector<string>::iterator it = _filestoSaveFeatures.begin() ; it != _filestoSaveFeatures.end(); ++it)
 					{
@@ -311,11 +372,11 @@ void Pipeline::preparePipeline(void){
 			 }
 			 else
 			 {
-			    FeaturesPipe *fp = npipes[ref];
+			    FeaturesPipe *fp = npipes[fname];
 				fp->_total++;
 				fp->_options = (opts | fp->_options);
 			 }
-			 
+			  oname.clear();
 			   } // end else haralick
 			  ++ca;
 			  ++it;
@@ -323,7 +384,7 @@ void Pipeline::preparePipeline(void){
 			 
 		 } // end if Features
 		
-			this->event_sequence[ca]=FUNCTIONS::FOO;
+			this->event_sequence[ca]=FUNCTIONS::OTHERS;
             ++ca;
 			++it;
       } 
@@ -338,7 +399,14 @@ if(features_found)
 		  writer->addPipe((*it).second);
 	  }
 
-	  writer->buildHeaders();
+	if(set_all)
+	  {
+		writer->buildHeaders(FEATURES::H_ALL);  // basic, shape, momen
+	  }
+	  else
+	  {
+		writer->buildHeaders();
+	  }
 	  ComputeFeatures::featureWriter = writer;
 }
 
@@ -373,7 +441,7 @@ if(features_found)
 	   }
 	
      // Add one more for the cleaning
-	   this->event_sequence[ca]=FUNCTIONS::FOO;
+	   this->event_sequence[ca]=FUNCTIONS::OTHERS;
 
 
 	    shared_ptr<General> g(new General());
@@ -400,11 +468,17 @@ void Pipeline::start(void){
 	   unsigned int total_loads = _filestoLoad.size();
 	   unsigned int total_files = _filestoLoad[0].size();
 	   int *c_files = new int[total_loads];
-	   int *c_files_out = new int[total_loads];
+	   int *c_files_out;
 	 //  int *c_files_out_feat = new int[total_files];
 	   string current_fname, main_fname;
 
 
+	    if(total_files == 0)
+	   {
+	    tr.message("ERROR: No files found in the directory with the provided description.");
+	    exit(-1907);
+	   }
+	   
 	   for(unsigned int i=0;i<_filestoLoad.size();i++)
 	   {
 		   if(_filestoLoad[i].size()!=total_files){
@@ -417,12 +491,17 @@ void Pipeline::start(void){
 	   end = _actionsList.end();
 
 	   // Counters for files start here
-	   for(int i=0;i<total_loads;i++)
+	   for(unsigned int i=0;i<total_loads;i++)
 	   {
 			c_files[i]=0;
-			c_files_out[i]=0;
 	   }
 	    
+	   int total_writes = _filestoSave.size();
+	   c_files_out = new int[total_writes];
+	   for(int i=0;i< total_writes;i++)
+	   { 
+	     c_files_out[i]=0;
+	   }
 		int n,no, total_actions;
 		int *nf = new int[5];
 		string action_name;
@@ -516,14 +595,9 @@ vector<string> Pipeline::getFilesFromDir(const char& dir,const char *_regexp)
 {
 
 	vector<string> filestopipeline;
-	regex rx(_regexp,std::regex_constants::egrep);
 
 	string hi;
 	char *_dir = (char *)malloc(250);
-	
-	
-	smatch res;
-
 	strcpy( _dir, &dir);
 	//strcat(_dir,"/");
 
@@ -535,10 +609,16 @@ vector<string> Pipeline::getFilesFromDir(const char& dir,const char *_regexp)
         exit(-2018);
     }
 
+
+    boost::regex rx(_regexp);
+    boost::cmatch res;
+
     while ((dirp = readdir(dp)) != NULL)
     {
         hi = string(dirp->d_name);
-        if(regex_match(hi,res,rx))
+
+
+       if(boost::regex_match(hi.c_str(), res, rx))
         {
         	string n = "/";
         	n.append(hi);
@@ -560,11 +640,11 @@ vector<string> Pipeline::getFilesFromDir(const char& dir,const char *_regexp)
 
 
 
-vector<string> Pipeline::generateOutputFileNames(const char& dir,const char *_exp1,const char *_exp2,const char *date,bool counter,int tf)
+vector<string> Pipeline::generateOutputFileNames(const char& dir,const char *_exp1,vector<string>_exp2,const char *date,bool counter,int tf)
 {
 	vector<string> filestosave;
 	char *_dir = (char *)malloc(512);
-	
+	bool appnam= (!_exp2.empty());
   
 	int count = 0;
 	int totalOuts = tf;
@@ -574,12 +654,20 @@ vector<string> Pipeline::generateOutputFileNames(const char& dir,const char *_ex
 	    strcpy( _dir, &dir);
 	    strcat( _dir, "/");
 		strcat(_dir,_exp1);
+	if(appnam)
+	{
 		strcat(_dir,"_");
-		strcat(_dir,_exp2);
+		strcat(_dir,_exp2[count].c_str());
+	}
 		strcat(_dir,"_");
 		if(counter)
 		{
+#if GCC_VERSION > 40500
 			scount = to_string(count);
+#else
+			scount = to_string(static_cast<long long>(count));
+#endif
+
 			strcat(_dir,scount.c_str());
 		}
 		strcat(_dir,"_");
@@ -692,4 +780,49 @@ void Pipeline::getMomentOptions(bitset<BIT_OPTIONS> &options,vector<string> &par
 						continue;
 					 }
 			 }
+}
+
+void Pipeline::getCommon(vector<vector<string>> files,vector<string> &common_names)
+{
+	ut::Trace tr = ut::Trace("PIPELINE:preparePipeline:getCommon string",__FILE__);
+	int count = 0;
+	  // Take the first load of each file
+	for(int i=0;i<files[0].size();i++)
+	{
+		string compare1=(files[0])[i]; //First file, let�s say DAPI
+		string compare2;  
+		string commonPrefix("");
+		int j=1;
+		for( ;j<files.size();j++)
+		{
+			compare2=(files[j])[i]; // next file, let�s say FITC
+			count=0;
+			while(compare1[count] == compare2[count] && count < compare2.size())
+			{
+			 count++;
+			}
+			// if I have more than two files, I can check for errors
+			if(compare2.substr(0,count).compare(compare1.substr(0,count))!=0)
+			{
+			  tr.message("ERROR: unequal number of files. Must supply same number of files for every channel and name then correctly.");
+			   exit(-1909);
+			}
+			commonPrefix = compare1.substr(0,count);		 
+			compare1=commonPrefix;	
+		} 
+		// Now I have the common Prefix
+		// if is less than 2, just use the first file
+		if(commonPrefix.size() < 2)
+		{
+		 commonPrefix=(files[j-1])[i];
+		 commonPrefix = commonPrefix.substr(0,commonPrefix.size()-4); // Remove extension
+		}
+		else
+		{
+			if(commonPrefix.size()==(files[j-1][i]).size()) commonPrefix = commonPrefix.substr(0,commonPrefix.size()-4); // Remove extension
+		}
+		common_names.push_back(commonPrefix);
+	 
+	}
+	  // Check how many substrings have in common
 }

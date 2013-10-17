@@ -1,7 +1,7 @@
 src/hcell-Pipeline.o: src/Pipeline.cpp src/Pipeline.h src/Action.h \
  src/MType.h src/MAllTypes.h src/utils.h src/PModule.h src/PoolManager.h \
- src/Slot.h src/InputValues.h src/PipelineGraph.h src/General.h \
- src/Writer.h src/ComputeFeatures.h src/FeatureCalculator.h
+ src/Slot.h src/PipelineGraph.h src/Hcell.h src/General.h src/Writer.h \
+ src/ComputeFeatures.h src/FeatureCalculator.h
 
 src/Pipeline.h:
 
@@ -19,9 +19,9 @@ src/PoolManager.h:
 
 src/Slot.h:
 
-src/InputValues.h:
-
 src/PipelineGraph.h:
+
+src/Hcell.h:
 
 src/General.h:
 

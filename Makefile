@@ -37,10 +37,14 @@ subdir = .
 DIST_COMMON = README $(am__configure_deps) $(srcdir)/Makefile.am \
 	$(srcdir)/Makefile.in $(srcdir)/config.h.in \
 	$(top_srcdir)/configure AUTHORS COPYING ChangeLog INSTALL NEWS \
-	build-aux/compile build-aux/depcomp build-aux/install-sh \
+	build-aux/compile build-aux/config.guess build-aux/config.sub \
+	build-aux/depcomp build-aux/install-sh build-aux/ltmain.sh \
 	build-aux/missing
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
-am__aclocal_m4_deps = $(top_srcdir)/configure.ac
+am__aclocal_m4_deps = $(top_srcdir)/m4/m4_ax_boost_base.m4 \
+	$(top_srcdir)/m4/m4_ax_boost_regex.m4 \
+	$(top_srcdir)/m4/m4_ax_cxx_compile_stdcxx_0x.m4 \
+	$(top_srcdir)/configure.ac
 am__configure_deps = $(am__aclocal_m4_deps) $(CONFIGURE_DEPENDENCIES) \
 	$(ACLOCAL_M4)
 am__CONFIG_DISTCLEAN_FILES = config.status config.cache config.log \
@@ -60,9 +64,7 @@ am_hcell_OBJECTS = src/hcell-utils.$(OBJEXT) \
 	src/hcell-FileProcessing.$(OBJEXT) src/hcell-General.$(OBJEXT) \
 	src/hcell-ImageProcessing.$(OBJEXT) \
 	src/hcell-PipelineGraph.$(OBJEXT) src/hcell-Pipeline.$(OBJEXT) \
-	src/hcell-PoolManager.$(OBJEXT) \
-	src/hcell-PriorityQueue.$(OBJEXT) \
-	src/hcell-proctools.$(OBJEXT) \
+	src/hcell-PoolManager.$(OBJEXT) src/hcell-proctools.$(OBJEXT) \
 	src/hcell-SegmentationProcessing.$(OBJEXT) \
 	src/hcell-Slot.$(OBJEXT) src/hcell-tinystr.$(OBJEXT) \
 	src/hcell-tinyxml.$(OBJEXT) src/hcell-tinyxmlerror.$(OBJEXT) \
@@ -72,7 +74,7 @@ am_hcell_OBJECTS = src/hcell-utils.$(OBJEXT) \
 	src/hcell-Hcell.$(OBJEXT)
 hcell_OBJECTS = $(am_hcell_OBJECTS)
 am__DEPENDENCIES_1 =
-hcell_DEPENDENCIES = $(am__DEPENDENCIES_1)
+hcell_DEPENDENCIES = $(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1)
 DEFAULT_INCLUDES = -I.
 depcomp = $(SHELL) $(top_srcdir)/build-aux/depcomp
 am__depfiles_maybe = depfiles
@@ -149,12 +151,15 @@ AMTAR = $${TAR-tar}
 # hcell_LDFLAGS= $(OPENCV_LIBS)
 
 #AM_LDFLAGS = 
-AM_CXXFLAGS = -O0 -g3 -Wall -std=c++0x -w -MMD
+AM_CXXFLAGS = -O0 -g3 -Wall -std=c++0x -w -MMD 
 AM_LDFLAGS = 
 AUTOCONF = autoconf
 AUTOHEADER = autoheader
 AUTOMAKE = automake-1.11
 AWK = mawk
+BOOST_CPPFLAGS = -I/usr/include
+BOOST_LDFLAGS = -L/usr/lib
+BOOST_REGEX_LIB = -lboost_regex-mt
 CC = gcc
 CCDEPMODE = depmode=gcc3
 CFLAGS = -g -O2
@@ -189,10 +194,10 @@ OPENCV_LIBS = -lopencv_core -lopencv_imgproc -lopencv_highgui -lopencv_ml -lopen
 PACKAGE = hcell
 PACKAGE_BUGREPORT = serrajosemi@gmail.com
 PACKAGE_NAME = hcell
-PACKAGE_STRING = hcell 0.5.1
+PACKAGE_STRING = hcell 0.5.2
 PACKAGE_TARNAME = hcell
 PACKAGE_URL = http:://hcellapp.blogspot.com/
-PACKAGE_VERSION = 0.5.1
+PACKAGE_VERSION = 0.5.2
 PATH_SEPARATOR = :
 PKG_CONFIG = /usr/bin/pkg-config
 PKG_CONFIG_LIBDIR = 
@@ -200,7 +205,7 @@ PKG_CONFIG_PATH =
 SET_MAKE = 
 SHELL = /bin/bash
 STRIP = 
-VERSION = 0.5.1
+VERSION = 0.5.2
 abs_builddir = /home/josemi/hcell
 abs_srcdir = /home/josemi/hcell
 abs_top_builddir = /home/josemi/hcell
@@ -244,9 +249,9 @@ target_alias =
 top_build_prefix = 
 top_builddir = .
 top_srcdir = .
-SUBDIRS = src
+SUBDIRS = . src
 AUTOMAKE_OPTIONS = subdir-objects
-ACLOCAL_AMFLAGS = -I m4 ${ACLOCAL_FLAGS}
+ACLOCAL_AMFLAGS = -I m4 ${ACLOCAL_FLAGS} build-aux
 hcell_SOURCES = \
 src/utils.cpp src/utils.h \
 src/PModule.cpp src/PModule.h \
@@ -258,9 +263,8 @@ src/General.cpp src/General.h\
 src/ImageProcessing.cpp src/ImageProcessing.h \
 src/MAllTypes.h src/ModuleSelector.h src/MType.h \
 src/PipelineGraph.cpp src/PipelineGraph.h \
-src/Pipeline.h src/Pipeline.cpp src/InputValues.h  \
+src/Pipeline.h src/Pipeline.cpp  \
 src/PoolManager.cpp src/PoolManager.h \
-src/PriorityQueue.cpp src/PriorityQueue.h \
 src/proctools.cpp src/proctools.h \
 src/SegmentationProcessing.cpp src/SegmentationProcessing.h \
 src/Slot.cpp src/Slot.h \
@@ -272,7 +276,7 @@ src/Hcell.cpp src/Hcell.h
 
 
 # the additional libraries needed to link 
-hcell_LDADD = $(OPENCV_LIBS)
+hcell_LDADD = $(OPENCV_LIBS) $(BOOST_REGEX_LIB)
 hcell_CPPFLAGS = $(OPENCV_CFLAGS) 
 EXTRA_DIST = m4/NOTES examples
 all: config.h
@@ -396,8 +400,6 @@ src/hcell-Pipeline.$(OBJEXT): src/$(am__dirstamp) \
 	src/$(DEPDIR)/$(am__dirstamp)
 src/hcell-PoolManager.$(OBJEXT): src/$(am__dirstamp) \
 	src/$(DEPDIR)/$(am__dirstamp)
-src/hcell-PriorityQueue.$(OBJEXT): src/$(am__dirstamp) \
-	src/$(DEPDIR)/$(am__dirstamp)
 src/hcell-proctools.$(OBJEXT): src/$(am__dirstamp) \
 	src/$(DEPDIR)/$(am__dirstamp)
 src/hcell-SegmentationProcessing.$(OBJEXT): src/$(am__dirstamp) \
@@ -438,7 +440,6 @@ mostlyclean-compile:
 	-rm -f src/hcell-Pipeline.$(OBJEXT)
 	-rm -f src/hcell-PipelineGraph.$(OBJEXT)
 	-rm -f src/hcell-PoolManager.$(OBJEXT)
-	-rm -f src/hcell-PriorityQueue.$(OBJEXT)
 	-rm -f src/hcell-SegmentationProcessing.$(OBJEXT)
 	-rm -f src/hcell-Slot.$(OBJEXT)
 	-rm -f src/hcell-WatershedSegmenter.$(OBJEXT)
@@ -466,7 +467,6 @@ include src/$(DEPDIR)/hcell-PModule.Po
 include src/$(DEPDIR)/hcell-Pipeline.Po
 include src/$(DEPDIR)/hcell-PipelineGraph.Po
 include src/$(DEPDIR)/hcell-PoolManager.Po
-include src/$(DEPDIR)/hcell-PriorityQueue.Po
 include src/$(DEPDIR)/hcell-SegmentationProcessing.Po
 include src/$(DEPDIR)/hcell-Slot.Po
 include src/$(DEPDIR)/hcell-WatershedSegmenter.Po
@@ -662,20 +662,6 @@ src/hcell-PoolManager.obj: src/PoolManager.cpp
 #	source='src/PoolManager.cpp' object='src/hcell-PoolManager.obj' libtool=no \
 #	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) \
 #	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(hcell_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o src/hcell-PoolManager.obj `if test -f 'src/PoolManager.cpp'; then $(CYGPATH_W) 'src/PoolManager.cpp'; else $(CYGPATH_W) '$(srcdir)/src/PoolManager.cpp'; fi`
-
-src/hcell-PriorityQueue.o: src/PriorityQueue.cpp
-	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(hcell_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT src/hcell-PriorityQueue.o -MD -MP -MF src/$(DEPDIR)/hcell-PriorityQueue.Tpo -c -o src/hcell-PriorityQueue.o `test -f 'src/PriorityQueue.cpp' || echo '$(srcdir)/'`src/PriorityQueue.cpp
-	$(am__mv) src/$(DEPDIR)/hcell-PriorityQueue.Tpo src/$(DEPDIR)/hcell-PriorityQueue.Po
-#	source='src/PriorityQueue.cpp' object='src/hcell-PriorityQueue.o' libtool=no \
-#	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) \
-#	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(hcell_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o src/hcell-PriorityQueue.o `test -f 'src/PriorityQueue.cpp' || echo '$(srcdir)/'`src/PriorityQueue.cpp
-
-src/hcell-PriorityQueue.obj: src/PriorityQueue.cpp
-	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(hcell_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT src/hcell-PriorityQueue.obj -MD -MP -MF src/$(DEPDIR)/hcell-PriorityQueue.Tpo -c -o src/hcell-PriorityQueue.obj `if test -f 'src/PriorityQueue.cpp'; then $(CYGPATH_W) 'src/PriorityQueue.cpp'; else $(CYGPATH_W) '$(srcdir)/src/PriorityQueue.cpp'; fi`
-	$(am__mv) src/$(DEPDIR)/hcell-PriorityQueue.Tpo src/$(DEPDIR)/hcell-PriorityQueue.Po
-#	source='src/PriorityQueue.cpp' object='src/hcell-PriorityQueue.obj' libtool=no \
-#	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) \
-#	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(hcell_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o src/hcell-PriorityQueue.obj `if test -f 'src/PriorityQueue.cpp'; then $(CYGPATH_W) 'src/PriorityQueue.cpp'; else $(CYGPATH_W) '$(srcdir)/src/PriorityQueue.cpp'; fi`
 
 src/hcell-proctools.o: src/proctools.cpp
 	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(hcell_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT src/hcell-proctools.o -MD -MP -MF src/$(DEPDIR)/hcell-proctools.Tpo -c -o src/hcell-proctools.o `test -f 'src/proctools.cpp' || echo '$(srcdir)/'`src/proctools.cpp

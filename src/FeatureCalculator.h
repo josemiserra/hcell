@@ -46,11 +46,11 @@ struct accumulator
     accumulator() : sum(0), S(0), M(0), N(0) { }
  
 	void clear()
-	{
-	 sum = 0;
-	 S=0;
-	 M=0;
-	 N=0;
+	{ 
+	 sum = 0.0;
+	 S=0.0;
+	 M=0.0;
+	 N=0.0;
 	}
     // add another number
     T2 operator()(const T& x)
@@ -58,9 +58,10 @@ struct accumulator
         ++N;
         sum += x;
         T Mprev = M;
-        M += (x - Mprev) / N;
-        S += (x - Mprev) * (x - M);
-        return sum;
+        M += (x - Mprev) / N;		 	
+        S += (x - Mprev) * (x - M);  // TODO: Review here...
+        if(S!=S) S=0.0;
+		return sum;
     }
  
     T mean() const
@@ -70,7 +71,8 @@ struct accumulator
  
     T variance() const
     {
-        return S / (N - 1);
+        if(N==1) return 0;
+		return S / (N - 1);
     }
 
 
@@ -87,6 +89,17 @@ struct accumulator
 		double tot,h,_h_;
 	    vector<T> quants;
 		int n= a.size();
+		
+		if(a.size()==0)
+		{
+		    for(int i=0;i<5;i++) quants.push_back(0.0);
+			return quants;
+		}
+		if(a.size()==1)
+		{
+			for(int i=0;i<5;i++) quants.push_back(a[0]);
+			return quants;
+		} 
 		sort(a.begin(),a.end(),comparator);
 	  // basic.quantiles=(0.01, 0.05, 0.5, 0.95, 0.99)
 		
@@ -319,31 +332,58 @@ public:
 
 		// Next step is create a double�s vector with the intensity values of each list of Points
 		// int type = reference.type();
-		// Data must be normalized between 0 and 1
-		reference.convertTo(ref2, CV_32F);
+		// Data must be normalized between 0 and 1 to a 32F matrix
 		double min;
 		double max;
-		minMaxIdx(ref2, &min, &max);
+		minMaxIdx(reference, &min, &max);
+		
+		if(reference.type() == CV_8U || reference.type() == CV_16U || max >1.0 ) 
+		{	
+			reference.convertTo(ref2, CV_64F);
+			
+
+			for( int y = 0; y < ref2.rows; y++ )
+			 for( int x = 0; x < ref2.cols; x++ )
+				{
+					ref2.at<double>(y,x)=((ref2.at<double>(y,x)-min)/(max-min));
+				}
+		}
+		else
+		{
+			reference.convertTo(ref2, CV_64F);
+		}
+		if(objects.size()==0)
+		{
+			tr.message("WARNING: Features cannot be calculated if objects container empty!");
+			vector<double> temp;
+			if(options[0]) 			temp.push_back(0);
+			if(options[1])			temp.push_back(0);	
+			if(options[2])			temp.push_back(0);	
+			if(options[3]) // QUANTILES
+			{
+			 for(int i=0; i<5; i++)			  temp.push_back(0);	
+			}
+		    ind_values.push_back(temp);
+			for(unsigned int i=0;i<ind_values[0].size();i++)
+			{
+				gen_values.push_back(0);
+				gen_values.push_back(0);
+			}
+			return;
+		}
 
 
-
-		for( int y = 0; y < ref2.rows; y++ )
-		  for( int x = 0; x < ref2.cols; x++ )
-              {
-				ref2.at<float>(y,x)=((ref2.at<float>(y,x)-min)/(max-min));
-             }
- 
 		for(vloP::iterator it = objects.begin(); it!=objects.end(); ++it)
 		{
 			for(loP::iterator obj = (*it).begin(); obj!=(*it).end(); ++obj)
 			{
 			 p = *obj;
-			 myValues.push_back(ref2.at<float>(p.y,p.x));
+			 myValues.push_back(ref2.at<double>(p.y,p.x));
 			 a((const double)myValues.back());
 			}
 		    vector<double> temp;
 
-			
+		
 		   if(options[0]) // Mean
 			{			
 			 temp.push_back(a.mean());
@@ -364,11 +404,11 @@ public:
 			  temp.push_back(*itv);	
 			  }
 			 tmp2.clear();
-			}
+			} 
 		    ind_values.push_back(temp);
 			a.clear();
 			myValues.clear();
-		}
+		} 
 		// so far we computed for each object	
 		// now we are going to compute for general.  
 		 accumulator<double,double> ga;
@@ -400,6 +440,27 @@ void static shape(vloP &objects,vloP &contours, Mat &ref,bitset<4> &options,vect
 		 double  temp1x,temp1y;
 		 accumulator<double> t1xa;
 		 accumulator<double> t1ya;
+
+		if(objects.size()==0)
+		{
+			tr.message("WARNING: Features cannot be calculated if objects container empty!");
+			vector<double> temp;
+			if(options[0]) 			temp.push_back(0);
+			if(options[1])			temp.push_back(0);	
+			if(options[2]) // RADIUS
+			{
+			 for(int i=0; i<3; i++)			  temp.push_back(0);	
+			}
+			if(options[3])			temp.push_back(0);	
+		    ind_values.push_back(temp);
+			for(unsigned int i=0;i<ind_values[0].size();i++)
+			{
+				gen_values.push_back(0);
+				gen_values.push_back(0);
+			}
+			return;
+		}
+
 
 		vloP::iterator itc = contours.begin();
 		for(vloP::iterator it = objects.begin(); it!=objects.end(); ++it,++itc)
@@ -441,7 +502,8 @@ void static shape(vloP &objects,vloP &contours, Mat &ref,bitset<4> &options,vect
 
 				 if(tot.size()==0)
 				 { 
-					 tr.message("WARNING: Wrong segmentation system or wrong contours!!! \n ########");
+					 tr.message("ERROR: Wrong segmentation system or wrong contours. ########");
+					 tr.message("Object with size 0 found!!! \n ########");
 					 exit(-1962);
 				 }
 				 double min = tot[0];
@@ -478,7 +540,7 @@ void static shape(vloP &objects,vloP &contours, Mat &ref,bitset<4> &options,vect
 
 	}
 
-void static moment(vloP &objects, Mat &reference,bitset<4> &options,vector<double> &gen_values,vector<vector<double>> &ind_values)  // based on intensity
+void static moment(vloP &objects, Mat &reference,bitset<4> &options,vector<double> &gen_values,vector<vector<double>> &ind_values, bool woref)  // based on intensity
 	{
 		ut::Trace tr = ut::Trace("FeatureCalculator::moment",__FILE__);
 		tr.message("Computing Features: moment");
@@ -489,11 +551,44 @@ void static moment(vloP &objects, Mat &reference,bitset<4> &options,vector<doubl
 		 Point p;
 		 
 		 Mat ref2;
-
 		 double min,max;
-		 minMaxIdx(reference, &min, &max);
 		 
-		 reference.convertTo(ref2, CV_32F);
+		 if(!woref)
+		 { 
+			 tr.message("Moment using REFERENCE.");
+			 minMaxIdx(reference, &min, &max);
+			 reference.convertTo(ref2, CV_64F);
+		 }
+		 else
+		 {
+		 tr.message("Moment without using REFERENCE.");
+
+		 }
+		 if(objects.size()==0)
+		{
+			tr.message("WARNING: Features cannot be calculated if objects container empty!");
+			vector<double> temp;
+			if(options[0]) 			
+			{
+				temp.push_back(0);
+				temp.push_back(0);
+			}
+			if(options[1])
+			{
+				temp.push_back(0);
+				temp.push_back(0);
+			}
+			if(options[2])			temp.push_back(0);	
+			if(options[3])			temp.push_back(0);	
+		    ind_values.push_back(temp);
+			for(unsigned int i=0;i<ind_values[0].size();i++)
+			{
+				gen_values.push_back(0);
+				gen_values.push_back(0);
+			}
+			return;
+		}
+
 
 		for(vloP::iterator it = objects.begin(); it!=objects.end(); ++it)
 		{
@@ -503,25 +598,32 @@ void static moment(vloP &objects, Mat &reference,bitset<4> &options,vector<doubl
 		  for(loP::iterator itn = (*it).begin(); itn!=(*it).end(); ++itn)
 		  {	    
 		    
-			p = *itn;							
-			val=(double)((ref2.at<float>(p.y,p.x)-min)/(max-min));
-
+			p = *itn;			
+			
+			if(woref)
+			{
+				val=1.0;
+			}
+			else
+			{
+				if(max > 1.0) val=((ref2.at<double>(p.y,p.x)-min)/(max-min));
+				else val = ref2.at<double>(p.y,p.x);
+			 }
 			vala(val);
-			t1x(val*p.y);
-			t1y(val*p.x);
+			t1x(val*p.x);
+			t1y(val*p.y);
 			t1xy(val*p.x*p.y);
-			t2x(val*p.y*p.y);
-			t2y(val*p.x*p.x);
+			t2x(val*p.x*p.x);
+			t2y(val*p.y*p.y);
 
 		  }
             
-         
 			m00 = vala.sum;
-			m01 = t1x.sum;
-			m10 = t1y.sum;
+			m10 = t1x.sum;
+			m01 = t1y.sum;
 			m11 = t1xy.sum;
-			m20 = t2y.sum;
-			m02 = t2x.sum;
+			m20 = t2x.sum;
+			m02 = t2y.sum;
 
 			cx = m10/m00;
 		    cy = m01/m00;
@@ -531,11 +633,14 @@ void static moment(vloP &objects, Mat &reference,bitset<4> &options,vector<doubl
              
 			mu11 = m11/m00 - cx * cy;
 		    
-			det = sqrt(4 * mu11*mu11 + (mu20 - mu02)*(mu20-mu02));
+			det = sqrt(4 * mu11*mu11 + (mu20 - mu02)*(mu20 - mu02));
 			theta = atan2(2 * mu11, (mu20 - mu02))/2;
 			l1 = sqrt((mu20 + mu02 + det)/2) * 4;
             l2 = sqrt((mu20 + mu02 - det)/2) * 4;
-            eccentricity = sqrt(1 - (l2*l2)/(l1*l1));
+            if(l1>0.0)
+				eccentricity = sqrt(1 - (l2*l2)/(l1*l1));
+			else
+				eccentricity = 0.0;
 
 			if(options[0]) // c.x and c.y
 			{			
@@ -629,7 +734,7 @@ void static haralickMatrix(int *data, int nobj,Mat &ref,int cgrades,vector<doubl
 	}
 
 	Mat ref2;
-	ref.convertTo(ref2, CV_32F);
+	ref.convertTo(ref2, CV_64F);
 
 	double min;
 	double max;
@@ -641,7 +746,7 @@ void static haralickMatrix(int *data, int nobj,Mat &ref,int cgrades,vector<doubl
 	for( i = 0; i < ny; i++ )
 	  for(  j = 0; j < nx; j++ )
           {
-			refdata[IJ(i,j)]=((ref2.at<float>(i,j)-min)/(max-min));
+			refdata[IJ(i,j)]=((ref2.at<double>(i,j)-min)/(max-min));
           }
 
 	/* get image data */

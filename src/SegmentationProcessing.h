@@ -8,18 +8,28 @@
 #include <set>
 #include <vector>
 #include <iostream>
-// #include <boost/heap/priority_queue.hpp>
 #include "PModule.h"
 #include <opencv2/opencv.hpp>
 #include "MType.h"
 #include "MAllTypes.h"
 #include "WatershedSegmenter.h"
 #include "utils.h"
-#include "PriorityQueue.h"
+
 
 using namespace cv;
 using namespace std;
 
+
+enum SFLAGS
+{
+	MERGE_FLAGS 
+}; 
+enum MERGE
+{
+	FAST,
+	FUSION,
+	FIRST_FOUND
+};
 
 
 class SegmentationProcessing :
@@ -42,6 +52,9 @@ public:
 		tFunc["SPLIT BY FRAGMENTATION"]=&SegmentationProcessing::_splitbyFragmentation;
 		tFunc["MERGE OBJECTS"]=&SegmentationProcessing::_merge;
 		
+		eMap["FAST"]=MERGE::FAST+SFLAGS::MERGE_FLAGS ;
+		eMap["FUSION"]=MERGE::FUSION+SFLAGS::MERGE_FLAGS ;
+		eMap["FIRST_FOUND"]=MERGE::FIRST_FOUND+SFLAGS::MERGE_FLAGS;
 
 	};
 	~SegmentationProcessing(void){};
@@ -52,10 +65,11 @@ public:
 	{
 	
 		std::map<std::string, Function >::iterator x =  tFunc.find(current_action);
-	if (x != tFunc.end()) {
+		if (x != tFunc.end())
+		{
 		(*this.*(x->second))(params,pid);
-    }
-	return;
+		}
+		return;
 	
 	}
 
@@ -215,7 +229,7 @@ void _splitbywatershed(std::vector<MType *> parValues, unsigned int pid)
 /*****************************************************************************************************
 *  SplitNuclei
 *  Given a binary image (8U) uses a watershed transform to segment nuclei.
-* 
+*  VALUES :Intensity or distance
 *******************************************************************************************************/
 int __splitbywatershed(const char* input,const char* reference, const char* output,int ext,double tol,const char* method){
 	 
@@ -314,7 +328,7 @@ int __splitbyOtsu(const char* reference, const char* load_objects, const char* s
  *   An object of 200 pixels is then fragmented using watershed or otsu. 200/40 will give us 
  *  5 objects if they are clumpled nuclei. Well, it could happen that we get 4 or 7 instead of 5
  *  but we will never tolerate 1 or 2, or even 3. In this case, our coefficient would be simply 4/200 = 0.02.
- *	 
+ *	 (The minimum that we can tolerate). 
  *   Our algorithm:
  *		- Takes the coordinates of one big object
  *      - Searches the objects from fragmented objects which belong to it and counts them. 
@@ -341,8 +355,19 @@ void _splitbyFragmentation(std::vector<MType *> parValues, unsigned int pid)
 	 __splitbyFragmentation(reference.c_str(),big_objects.c_str(),frag_objects.c_str(),save_objects.c_str(),coefficient);
 
 }
+/*
+Given two sets, one of big objects and other of the same objects fragmented.
+The fragmented objects are imprinted to an image. Then, I create a list of sets.
+Each set represents one big object. If for example, in the image, the big object 4
+has 200 intersections, I save only the unique numbers from the fragmented objects, 
+like 2,3,4,5,7.
+
+
+*/
 int __splitbyFragmentation(const char* reference, const char* big_objects, const char* frag_objects, const char* save_objects,double coefficient)
 {
+
+	ut::Trace tr = ut::Trace("Split by Fragmentation :",__FILE__); 
 
 	 vloP *_Bobjvec = pool->getlObj(big_objects);
 	 vloP *_Fobjvec = pool->getlObj(frag_objects);	 
@@ -350,59 +375,107 @@ int __splitbyFragmentation(const char* reference, const char* big_objects, const
 	 Mat *ref=pool->getImage(reference);
 	 Mat refF,refB;
 	 refF = Mat::zeros(ref->rows,ref->cols,CV_32FC1);
-	 refB = Mat::zeros(ref->rows,ref->cols,CV_32FC1);
 	 vector<std::set<int>> Obslist;
 	 vloP total;
 	 Point ps;
-	 int count = 1.0;
+	 bool good_behavior=true;
+	 int count = 0;
+	 // Imprint to an image fragmented objects
 	 for(vloP::iterator it = _Fobjvec->begin(); it!=_Fobjvec->end(); ++it)
 	{
+		count++;
 		for(loP::iterator itn = (*it).begin(); itn!=(*it).end(); ++itn)
 		{
 			ps = (*itn);
 			refF.at<float>(ps) = count;
 		}
-		count++;
+		
 	 }
 	int val;
-	count = 0;
+	// Create a set for each big object and save possible intersections
+	set<int> myset;	
+	bool intersect = false;
 	for(vloP::iterator it2 = _Bobjvec->begin(); it2!=_Bobjvec->end(); ++it2)
 	{
-		 std::set<int> myset;
-		 Obslist.push_back(myset);
+		intersect=false;	
 		for(loP::iterator itn2 = it2->begin(); itn2!=it2->end(); ++itn2)
 		{
-			ps = (*itn2);
-			val = (int) refF.at<float>(ps);
+			val = (int)(refF.at<float>(*itn2));
 			if(val!=0.0)
 			{
-			// I save in my list
-			Obslist[count].insert(val);
+			 // I save in my list if I have found an intersection
+			 myset.insert(val);
+			 intersect=true;
 			}
-			
 		}
-		count++;
+		if(!intersect) total.push_back(*it2);
+		Obslist.push_back(myset);
+		myset.clear();
 	 } 
 	// Now classify and create new set:
 	double pcoef;
+	std::set<int>::iterator set_it;
 	for(unsigned int i=0;i<Obslist.size();i++)
 	{
-		pcoef = (Obslist[i].size()*1.0)/((*_Bobjvec)[i].size()*1.0);
+		
+		pcoef = ((*_Bobjvec)[i].size()*1.0)/coefficient;  // Example 200/40 = 5
 		// cout << pcoef <<endl;
-		if( pcoef>coefficient)
+		if( Obslist[i].size()>(int)pcoef)  // I have 20 objects then 20 > 5, high fragmentation.
 		{
 			for( auto it=Obslist[i].begin(); it!=Obslist[i].end(); ++it)
 			{
-				total.push_back((*_Fobjvec)[*it]);
+			  total.push_back((*_Fobjvec)[(*it)-1]); // I save all fragmented objects
 			}
-		
 		}
 		else
 		{
 			total.push_back((*_Bobjvec)[i]);
 		}
 
-	}
+	} 
+	// Create mask for Big objects
+	 refB = Mat::zeros(ref->rows,ref->cols,CV_8UC1);
+	 for(vloP::iterator it = _Bobjvec->begin(); it!=_Bobjvec->end(); ++it)
+	 {
+		for(loP::iterator itn = (*it).begin(); itn!=(*it).end(); ++itn)
+		{	
+			ps = (*itn);
+			refB.at<uchar>(ps) = 255;
+		}	
+	 }
+	
+	 for(vloP::iterator it =total.begin(); it!=total.end(); ++it)
+	 {
+		loP::iterator itn = it->begin();
+		while(itn!=it->end())
+		{
+			ps = (*itn);
+			if(refB.at<uchar>(ps)!=0)  
+			{
+			  refB.at<uchar>(ps)=0;
+			  ++itn;
+			}
+			else  // then I have a point out of place or repeated--> I remove it
+			{
+			if(good_behavior)
+				{
+				tr.message("WARNING:Point destroyed! Small objects intersecting two or more big objects!!");
+				good_behavior=false;
+				}
+			//	tr.message("x:",ps.x);
+			//	tr.message("y:",ps.y);
+				itn=it->erase(itn);
+			}
+		}	
+	 }
+	 
+
+
+
+	tr.message("Total objects from BIG:",_Bobjvec->size());
+	tr.message("Total objects from FRAGMENTED:",_Fobjvec->size());
+	tr.message("After splitting:",total.size());
+	if(good_behavior) tr.message("Perfect fitting between Big and Small!!! :) ");
 	pool->storelObj(total,save_objects);
 	return 0;
 }
@@ -422,27 +495,217 @@ void _merge(std::vector<MType *> parValues, unsigned int pid)
 	
 	 string load_objects_1	= (dynamic_cast<MStringType*>(parValues[0]))->getValue();	// Name of vector of Objects
 	 string load_objects_2	= (dynamic_cast<MStringType*>(parValues[1]))->getValue();	// Name of vector of Objects
-	 string output	= (dynamic_cast<MStringType*>(parValues[2]))->getValue();	// Name of vector of Objects
+	 string mask = (dynamic_cast<MStringType*>(parValues[2]))->getValue();
+	 string soperation = (dynamic_cast<MStringType*>(parValues[3]))->getValue(); // operation type
+	 string output	= (dynamic_cast<MStringType*>(parValues[4]))->getValue();	// Name of vector of Objects
+	 string reference = (dynamic_cast<MStringType*>(parValues[5]))->getValue();
 
+	int operation = eMap[soperation];
+
+	 this->combnames(mask,pid,mask);
+	 this->combnames(reference,pid,reference);
 	 this->combnames(load_objects_1	,pid,load_objects_1);
 	 this->combnames(load_objects_2,pid,load_objects_2);
 	 this->combnames(output,pid,output);
 
-	 __merge(load_objects_1.c_str(),load_objects_2.c_str(),output.c_str());
+	 __merge(load_objects_1.c_str(),load_objects_2.c_str(),output.c_str(),reference.c_str(),operation, mask.c_str());
 
 }
 
-int __merge(const char* load_objects_1,const char* load_objects_2, const char* output)
+int __merge(const char* load_objects_1,const char* load_objects_2, const char* output,const char *reference,int operation, const char *mask)
 {
+
+	ut::Trace tr = ut::Trace("Merge :",__FILE__); 	
+
 	vloP* lobj_1= pool->getlObj(load_objects_1);
 	vloP* lobj_2 = pool->getlObj(load_objects_2);
+	Mat *ref=pool->getImage(reference);
+	string _m(mask);
+	
+	tr.checkObject(load_objects_1,*lobj_1,*ref);
+	tr.checkObject(load_objects_2,*lobj_2,*ref);
+
+	Mat _mask(ref->rows,ref->cols, CV_8UC1, Scalar(0));
+	if(_m.substr(_m.size()-2).compare("NO")!=0)
+	{
+		Mat *tmask = pool->getImage(mask);
+		tmask->copyTo(_mask);
+		tr.printMatrixInfo("MASK:",_mask);
+	}
 	vloP  lobj_3;
-	lobj_3.insert(lobj_3.begin(),lobj_1->begin(),lobj_1->end());
-	lobj_3.insert(lobj_3.begin(),lobj_2->begin(),lobj_2->end());
-	// Sorting by coordinates?
-	// 
-	 pool->storelObj(lobj_3,output);
-	return 0;
+	operation = operation-SFLAGS::MERGE_FLAGS;
+	// Merging two objects can be done in three different ways.
+	// First is a fast merging, only recommended if you know that the objects don´t have overlapping regions
+	tr.message("Total objects from vloP 1 : ", lobj_1->size());
+	tr.message("Total objects from vloP 2 : ", lobj_2->size());
+	
+	if(operation==MERGE::FAST){
+
+		lobj_3.insert(lobj_3.begin(),lobj_1->begin(),lobj_1->end());
+		lobj_3.insert(lobj_3.begin(),lobj_2->begin(),lobj_2->end());
+		pool->storelObj(lobj_3,output);
+		tr.message("After merging vloP 3 : ", lobj_3.size());
+		return 0;
+	}
+	// The other possibility is making a fussion of objects.
+		// The best way of merge two different groups of objects is to write them to an image.
+		// We first throw the object to an image
+
+	if(lobj_1->size()==0)
+	{
+		pool->storelObj(*lobj_2,output);
+		tr.message("After merging vloP 3 : ", lobj_2->size());
+		return 0;
+	}
+	if(lobj_2->size()==0)
+	{
+		pool->storelObj(*lobj_1,output);
+		tr.message("After merging vloP 3 : ", lobj_1->size());
+		return 0;
+	}
+	// Initialize blank image to 8 bits for binarization
+		Mat test(ref->rows,ref->cols, CV_32FC1, Scalar(0));
+		int count = 0.0;
+		for(auto myIterator =lobj_1->begin();  myIterator != lobj_1->end(); myIterator++)
+		{
+			count++;
+			for(auto myIt2 = myIterator->begin(); myIt2!= myIterator->end();myIt2++)
+			{
+				test.at<float>(*myIt2)= count;
+			}
+			
+		}
+		
+
+	if(operation==MERGE::FUSION)
+	{
+	// When the second object will be writing, if it is found to intersect with one of the previous 
+	// objects, then all pixels are renumbered
+	bool intersect =false;	
+	std::set<float> mysetint;
+	float oldcount=0.0;
+	int value=0;
+	loP tempLop;
+	
+		for(auto myIterator =lobj_2->begin();  myIterator != lobj_2->end(); myIterator++)
+		{
+			count++;
+			for(auto myIt2 = myIterator->begin(); myIt2!= myIterator->end();myIt2++)
+			{
+
+				oldcount=test.at<float>(*myIt2);
+				if(test.at<float>(*myIt2)!=0.0)  // intersection found!!!
+				{			
+				  mysetint.insert(oldcount);
+				//  cout << oldcount << "," << endl;
+				  intersect = true;
+				}
+				else
+				{
+				test.at<float>(*myIt2)=count;
+				}
+			}
+		
+// INTERSECTION:
+			if(intersect) // then I need to rewrite all my touched objects.
+			{
+			 // Then find the minimum value of all the intersected
+             set<float>::iterator it;
+			 it = mysetint.begin();
+			 int mymin=floor(*it);
+			
+			 // now assign the value to my object again, with the value of the intersection
+			for(auto myIt2 = myIterator->begin(); myIt2!= myIterator->end();myIt2++)
+			{
+				test.at<float>(*myIt2)=mymin;
+			} 
+			count--;
+			if(mymin > lobj_1->size())
+			{
+				 tr.message("WARNING: The second set of your objects intersect with itself (repeated pixels for the same object)!!!!");
+				 tr.message("Object intersected:",mymin);
+				 intersect=false;
+				 continue;
+			}
+			// also assign everything connected
+			it++;
+			for(  ; it!= mysetint.end();it++)
+			{
+					value= floor((*it));
+					tempLop= (*lobj_1)[value-1];
+					for(auto myIt2 = tempLop.begin(); myIt2!= tempLop.end();myIt2++)
+					{
+					test.at<float>(*myIt2)=mymin;
+					}  // and update my counter
+			}
+			mysetint.clear();
+			}
+			intersect = false; // reset the intersection possibility
+		}
+	}
+
+
+	if(operation==MERGE::FIRST_FOUND)  // In this case, when intersection is found, the object in the second part is removed.
+	{
+		bool intersect =false;
+
+		for(auto myIterator =lobj_2->begin();  myIterator != lobj_2->end(); myIterator++)
+		{
+			for(auto myIt2 = myIterator->begin(); myIt2!= myIterator->end();myIt2++)
+			{
+				if(test.at<float>(*myIt2)!=0)  // intersection found!!!
+				{			
+					intersect = true;
+				}
+			}
+			if(!intersect) // then I am  assigning
+			{
+			    count++;
+				for(auto myIt2 = myIterator->begin(); myIt2!= myIterator->end();myIt2++)
+				{	
+					 test.at<float>(*myIt2)=count;
+				}			
+			}
+			
+			intersect = false; // reset the intersection possibility
+		}
+	}
+// And last but not least, we need to move points from the image to the new container
+
+		int temp;
+
+		for(unsigned int i = 0; i < count; i++) lobj_3.push_back(loP());
+
+		for(unsigned int i = 0; i < test.rows; i++)
+		{
+			for(unsigned int j = 0; j < test.cols; j++){
+			 temp = floor(test.at<float>(i,j));
+			 if(_mask.at<uchar>(i,j)==0)
+			 {
+			    if(temp!=0)
+				{
+					lobj_3[temp-1].push_back(Point(j,i));
+				}
+			 }
+		}
+		}
+		 auto iter = lobj_3.begin();
+		 while (iter != lobj_3.end())
+		 {
+			 if (iter->size()==0)
+			 {
+              iter =lobj_3.erase(iter);
+			 }
+			else
+			{
+			 ++iter;
+			 }
+		}
+
+
+		tr.message("After merging vloP 3 : ", lobj_3.size());
+	    pool->storelObj(lobj_3,output);
+		return 0;
 
 }
 
@@ -473,16 +736,16 @@ struct Pixel {
 };
 
 // For using standard library or boost, the next functor can be used instead
-/*
+
 struct Pixel_compare { 
  inline bool operator() (const Pixel& a, const Pixel& b) const 
  { return  a.distance > b.distance; }
 } px;
-*/
-   typedef PriorityQueue<Pixel> PixelQueue;
+
+//  typedef PriorityQueue<Pixel> PixelQueue;
 // Boost and STL definitions for priority queue
 // 
-// typedef boost::heap::priority_queue<Pixel,boost::heap::compare<Pixel_compare>> PixelQueue;
+typedef  std::priority_queue<Pixel, std::vector<Pixel>, Pixel_compare> PixelQueue;
 
 private:
 inline void push_neighbors_on_queue(PixelQueue &pq,
@@ -495,7 +758,7 @@ inline void push_neighbors_on_queue(PixelQueue &pq,
 						Mat &mask);
 
 static void contaminate(vloP &o_out,Mat &lab_copy,int i, int j,unsigned int &last_tag);
-
+static void contaminate(vloP &o_out,Mat &lab_copy,int i, int j,unsigned int &last_tag,int limit);
 };
 
 

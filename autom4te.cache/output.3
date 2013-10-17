@@ -4285,7 +4285,8 @@ fi
 done
 
 
-
+BOOST_REQUIRE(1.38.0)
+BOOST_REGEX
 
 
 if test "x$HAVE_OPENCV" = "xtrue"; then
@@ -4596,7 +4597,7 @@ fi
 
 
 if test "x$CHECKLIBS" = "xfalse"; then
-as_fn_error $? "\"Libraries libjpeg, libtiff, libjasper, libpng and netpbm are needed. Install any of those with the associated development packages (libjpeg-dev etc. on Debian/Ubuntu) if you want to use those stock libraries to read and write images in the respective formats. You also can link them from the versions supplied with OpenCV.\"" "$LINENO" 5
+as_fn_error $? "\"Libraries libjpeg, libtiff, libjasper, libpng and netpbm are needed. Install any of those with the associated development packages (sudo apt-get install libjpeg-dev libtiff-dev libpng-dev netpbm libjasper-dev on Debian/Ubuntu) if you want to use those stock libraries to read and write images in the respective formats. You also can link them from the versions supplied with OpenCV.\"" "$LINENO" 5
 fi
 
 # distribute additional compiler and linker flags among Makefiles

@@ -34,7 +34,10 @@ POST_UNINSTALL = :
 subdir = src
 DIST_COMMON = $(srcdir)/Makefile.am $(srcdir)/Makefile.in
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
-am__aclocal_m4_deps = $(top_srcdir)/configure.ac
+am__aclocal_m4_deps = $(top_srcdir)/m4/m4_ax_boost_base.m4 \
+	$(top_srcdir)/m4/m4_ax_boost_regex.m4 \
+	$(top_srcdir)/m4/m4_ax_cxx_compile_stdcxx_0x.m4 \
+	$(top_srcdir)/configure.ac
 am__configure_deps = $(am__aclocal_m4_deps) $(CONFIGURE_DEPENDENCIES) \
 	$(ACLOCAL_M4)
 mkinstalldirs = $(install_sh) -d
@@ -52,6 +55,9 @@ AUTOCONF = autoconf
 AUTOHEADER = autoheader
 AUTOMAKE = automake-1.11
 AWK = mawk
+BOOST_CPPFLAGS = -I/usr/include
+BOOST_LDFLAGS = -L/usr/lib
+BOOST_REGEX_LIB = -lboost_regex-mt
 CC = gcc
 CCDEPMODE = depmode=gcc3
 CFLAGS = -g -O2
@@ -86,10 +92,10 @@ OPENCV_LIBS = -lopencv_core -lopencv_imgproc -lopencv_highgui -lopencv_ml -lopen
 PACKAGE = hcell
 PACKAGE_BUGREPORT = serrajosemi@gmail.com
 PACKAGE_NAME = hcell
-PACKAGE_STRING = hcell 0.5.1
+PACKAGE_STRING = hcell 0.5.2
 PACKAGE_TARNAME = hcell
 PACKAGE_URL = http:://hcellapp.blogspot.com/
-PACKAGE_VERSION = 0.5.1
+PACKAGE_VERSION = 0.5.2
 PATH_SEPARATOR = :
 PKG_CONFIG = /usr/bin/pkg-config
 PKG_CONFIG_LIBDIR = 
@@ -97,7 +103,7 @@ PKG_CONFIG_PATH =
 SET_MAKE = 
 SHELL = /bin/bash
 STRIP = 
-VERSION = 0.5.1
+VERSION = 0.5.2
 abs_builddir = /home/josemi/hcell/src
 abs_srcdir = /home/josemi/hcell/src
 abs_top_builddir = /home/josemi/hcell

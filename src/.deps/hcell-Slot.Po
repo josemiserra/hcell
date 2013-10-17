@@ -1,5 +1,3 @@
-src/hcell-Slot.o: src/Slot.cpp src/Slot.h src/utils.h
+src/hcell-Slot.o: src/Slot.cpp src/Slot.h
 
 src/Slot.h:
-
-src/utils.h:

@@ -5,10 +5,9 @@
 #include <vector>
 #include <bitset>
 #include "Action.h"
-#include "InputValues.h"
 #include "PipelineGraph.h"
 #include "MAllTypes.h"
-
+#include "Hcell.h"
 
 #define BIT_OPTIONS 12
 
@@ -23,7 +22,7 @@ SHAPE,
 MOMENT,
 HARALICK,
 OTHERS,
-FOO
+ALL
 };
 
 
@@ -41,12 +40,10 @@ protected:
 	int *event_sequence;
 
 	void preparePipeline();
-
-
+	void getFilesFromDir(const char* dir);
 public:
 	Pipeline(vector<Action*> actionsList,InputValues inputvalues){
 	
-
 	 _actionsList = actionsList;
 	 _inpval = inputvalues;
 	 _pgraph.addList(actionsList);
@@ -54,7 +51,6 @@ public:
 
 	}
 	~Pipeline(void){
-
 		while(!_actionsList.empty())
 				{
 				 delete _actionsList.back(), _actionsList.pop_back();
@@ -65,11 +61,11 @@ public:
 
 void start(void);
 vector<string> getFilesFromDir( const char & dir,const char *regexp);
-vector<string> generateOutputFileNames(const char& dir,const char *_exp1,const char *_exp2,const char *date,bool counter,int);
+vector<string> generateOutputFileNames(const char& dir,const char *_exp1,vector<string>_exp2,const char *date,bool counter,int);
 void getBasicOptions(bitset<BIT_OPTIONS> &options,vector<string> &parameterNames,vector<MType *> &parameterValues);
 void getShapeOptions(bitset<BIT_OPTIONS> &options,vector<string> &parameterNames,vector<MType *> &parameterValues);
 void getMomentOptions(bitset<BIT_OPTIONS> &options,vector<string> &parameterNames,vector<MType *> &parameterValues);
-
+void getCommon(vector<vector<string>> files,vector<string> &common_names);
 };
 
 #endif

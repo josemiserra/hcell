@@ -14,16 +14,17 @@
 using namespace std;
 
 
-#if GCC_VERSION < 40500
-struct less_than_tag
-{
-    inline bool operator() ( MType *a, MType *b)
-    {
+#ifdef __GNUC__
+	#if GCC_VERSION < 40500
+	struct less_than_tag
+	{
+		inline bool operator() ( MType *a, MType *b)
+		{
         return (a->getTag() < b->getTag());
-    }
-};
+		}
+	};
+	#endif
 #endif
-
 
 class Action
 {
@@ -82,11 +83,16 @@ void sortParams()
 {
 	sort(_nameParams.begin(),_nameParams.end());
 
-#if GCC_VERSION > 40500  // for lambda expression
+#ifdef __GNUC__
+	#if GCC_VERSION > 40500  // for lambda expression
 	sort(_realParams.begin(), _realParams.end(), [](MType *a, MType  *b) -> bool { return a->getTag()<b->getTag(); });
-#else
+	#else
 	sort(_realParams.begin(), _realParams.end(),less_than_tag());
-#endif
+	#endif
+#else
+	sort(_realParams.begin(), _realParams.end(), [](MType *a, MType  *b) -> bool { return a->getTag()<b->getTag(); });
+#endif	
+	
 }
 
 

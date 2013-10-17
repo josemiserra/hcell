@@ -1,6 +1,12 @@
 /* config.h.  Generated from config.h.in by configure.  */
 /* config.h.in.  Generated from configure.ac by autoheader.  */
 
+/* define if the Boost library is available */
+#define HAVE_BOOST /**/
+
+/* define if the Boost::Regex library is available */
+#define HAVE_BOOST_REGEX /**/
+
 /* Define to 1 if you have the <inttypes.h> header file. */
 #define HAVE_INTTYPES_H 1
 
@@ -33,6 +39,9 @@
 
 /* Define to 1 if you have the <png.h> header file. */
 #define HAVE_PNG_H 1
+
+/* Define if g++ supports C++0x features. */
+#define HAVE_STDCXX_0X /**/
 
 /* Define to 1 if you have the <stdint.h> header file. */
 #define HAVE_STDINT_H 1
@@ -74,7 +83,7 @@
 #define PACKAGE_NAME "hcell"
 
 /* Define to the full name and version of this package. */
-#define PACKAGE_STRING "hcell 0.5.1"
+#define PACKAGE_STRING "hcell 0.5.2"
 
 /* Define to the one symbol short name of this package. */
 #define PACKAGE_TARNAME "hcell"
@@ -83,13 +92,13 @@
 #define PACKAGE_URL "http:://hcellapp.blogspot.com/"
 
 /* Define to the version of this package. */
-#define PACKAGE_VERSION "0.5.1"
+#define PACKAGE_VERSION "0.5.2"
 
 /* Define to 1 if you have the ANSI C header files. */
 #define STDC_HEADERS 1
 
 /* Version number of package */
-#define VERSION "0.5.1"
+#define VERSION "0.5.2"
 
 /* Define to `unsigned int' if <sys/types.h> does not define. */
 /* #undef size_t */

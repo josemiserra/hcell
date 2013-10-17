@@ -41,6 +41,7 @@ class ComputeFeatures:
 	 tFunc["FILTER OBJECTS"] = &ComputeFeatures::_filterobjects; 
 	 tFunc["MOMENT"] = &ComputeFeatures::_momentfeatures;
 	 tFunc["HARALICK"] = &ComputeFeatures::_haralickfeatures; 
+	 tFunc["ALL FEATURES"] = &ComputeFeatures::_allfeatures; 
 
 	 featcalc =  FeatureCalculator::getInstance();
 	 
@@ -50,7 +51,7 @@ class ComputeFeatures:
 	~ComputeFeatures(void)
 	 {
 
-		cout<< "COMPUTEFEATURES finished" <<endl;
+		// cout<< "COMPUTEFEATURES finished" <<endl;
 		delete featureWriter;
 	 };
 
@@ -85,20 +86,22 @@ class ComputeFeatures:
 	 // append date 0
 	 // append name 1
 	 // foutput name 2
+     string foutput	= (dynamic_cast<MStringType*>(parValues[2]))->getValue(); 
 	 string objects	= (dynamic_cast<MStringType*>(parValues[3]))->getValue();  // imageName (output>
     //  bool mad 4 // feature
     //  bool mean 5 // feature
 	//  bool quantiles 6 // feature
-	 string reference_image	= (dynamic_cast<MStringType*>(parValues[7]))->getValue();  // imageName (output>
+	 string absref	= (dynamic_cast<MStringType*>(parValues[7]))->getValue();  // imageName (output>
 	 bool save_ind = (dynamic_cast<MBoolType*>(parValues[8]))->getValue(); // feature
 	//  bool sd 9 // feature	
 
 	 string ref;
 	 this->combnames(objects,pid,objects);
-	 this->combnames(reference_image,pid,ref);
+	 this->combnames(absref,pid,ref);
+	
 
 
-	 __basicfeatures(objects.c_str(),ref.c_str(),reference_image.c_str(),save_ind);
+	 __basicfeatures(objects.c_str(),ref.c_str(),foutput.c_str(),save_ind);
 
 	}
 
@@ -139,7 +142,7 @@ void __basicfeatures(const char* objects, const char* ref,const char* absref, bo
 	 // append name 1
 	 //  bool area 2 // feature
 	 // foutput name 3
-
+		 string foutput	= (dynamic_cast<MStringType*>(parValues[3]))->getValue(); 
 		string objects	= (dynamic_cast<MStringType*>(parValues[4]))->getValue();  // imageName (output>
     //  bool perimeter 5// feature
 	//  bool radius (6) 
@@ -151,8 +154,8 @@ void __basicfeatures(const char* objects, const char* ref,const char* absref, bo
 	 string ref;
 	 this->combnames(objects,pid,objects);
 	 this->combnames(reference_image,pid,ref);
-	
-	 __shapefeatures(objects.c_str(),ref.c_str(),reference_image.c_str(),save_ind);
+
+	 __shapefeatures(objects.c_str(),ref.c_str(),foutput.c_str(),save_ind);
 
 	}
 
@@ -198,25 +201,39 @@ void __shapefeatures(const char* objects, const char* ref,const char *absref, bo
 	//  bool centroid 3 //feature
 	//  bool eccentricity 4 // feature
 	//  foutput 5
+	 string foutput	= (dynamic_cast<MStringType*>(parValues[5]))->getValue(); 
 	 string objects	= (dynamic_cast<MStringType*>(parValues[6]))->getValue();  // imageName (output>
 	 string reference_image	= (dynamic_cast<MStringType*>(parValues[7]))->getValue();  // imageName (output>
 	 bool save_ind = (dynamic_cast<MBoolType*>(parValues[8]))->getValue(); // feature
-	
+	 
+
 
 	 string ref;
 	 this->combnames(objects,pid,objects);
-	 this->combnames(reference_image,pid,ref);
+	 bool woref = false;
+	 if(reference_image.compare("NO_REFERENCE")!=0) 
+	 {
+			 this->combnames(reference_image,pid,ref);
+	 }
+	 else
+	 {
+	  woref=true;
+	 } 
 
-	
-	 __momentfeatures(objects.c_str(),ref.c_str(),reference_image.c_str(),save_ind);
+	 __momentfeatures(objects.c_str(),ref,foutput.c_str(),save_ind, woref);
 
 	}
 
 
-void __momentfeatures(const char* objects, const char* ref, const char* absref,bool save_ind)
+void __momentfeatures(const char* objects, string &ref, const char* absref,bool save_ind,bool woref)
 {
 		vloP *_objvec = pool->getlObj(objects);
-		Mat *_ref = pool->getImage(ref);
+		Mat *_ref;
+		if(!woref) 
+		{
+			_ref = pool->getImage(ref.c_str());
+		}
+		
 		vector<double> gvals;
 		vector<vector<double>> indvals;
 		bitset<4> options(string("0000"));
@@ -227,7 +244,7 @@ void __momentfeatures(const char* objects, const char* ref, const char* absref,b
 				 if(fp->_options.test(i)) options |= options.set(i-8);
 			}
 		
-		this->featcalc->moment(*_objvec, *_ref, options, gvals, indvals);
+		this->featcalc->moment(*_objvec, *_ref, options, gvals, indvals, woref);
 		this->featureWriter->write(gvals,indvals,absref,save_ind);
 		
 }
@@ -266,7 +283,7 @@ void __momentfeatures(const char* objects, const char* ref, const char* absref,b
      // append date 0
 	 // append name 1
 	 int bins = (dynamic_cast<MIntType*>(parValues[2]))->getValue();
-	 const char *fname = (dynamic_cast<MStringType*>(parValues[3]))->getValue();
+	 string fname = (dynamic_cast<MStringType*>(parValues[3]))->getValue();
 	 string objects	=  (dynamic_cast<MStringType*>(parValues[4]))->getValue(); //
 	 string reference_image	= (dynamic_cast<MStringType*>(parValues[5]))->getValue();
 	 string scales = (dynamic_cast<MStringType*>(parValues[6]))->getValue();
@@ -286,15 +303,15 @@ void __momentfeatures(const char* objects, const char* ref, const char* absref,b
 	 this->combnames(objects,pid,objects);
 	 this->combnames(reference_image,pid,ref);
 	
-	 __haralickfeatures(objects.c_str(),ref.c_str(),reference_image.c_str(),_scales,bins,fname);
+	 __haralickfeatures(objects.c_str(),ref.c_str(),_scales,bins,fname);
 
 	}
 
 
-void __haralickfeatures(const char* objects, const char* ref, const char* absref,vector<int> scales,int bins,const char* fname)
+void __haralickfeatures(const char* objects, const char* ref,vector<int> scales,int bins,string fname)
 {
 
-	vloP *_objvec = pool->getlObj(objects);
+		vloP *_objvec = pool->getlObj(objects);
 		Mat *_ref = pool->getImage(ref);
 		
 		vector<vector<double>> indvals;
@@ -304,9 +321,6 @@ void __haralickfeatures(const char* objects, const char* ref, const char* absref
 				               "h.sen", "h.ent", "h.dva", "h.den", "h.f12", "h.f13"};
 		 vector<string> header(args, args + 13);
 
-		// Get file name from reference image
-		FeaturesPipe *fp;
-		fp = this->featureWriter->getFeaturePipe(absref);
 		// Since my file is independent, I don´t need to count generally.
 		const char* filename;
 		// get filename
@@ -336,10 +350,6 @@ void __haralickfeatures(const char* objects, const char* ref, const char* absref
 					data[((pn.y)*nx+(pn.x))]= count;
 			  }
 		}
-
-
-
-
 		for(vector<int>::iterator it = scales.begin(); it!=scales.end(); ++it)
 		{
 				// Generate header
@@ -374,9 +384,9 @@ void __haralickfeatures(const char* objects, const char* ref, const char* absref
 
 					int nx2 = indexes_x.size();
 					int ny2 = indexes_y.size();
-					Mat refcp(nx2,ny2,CV_32FC1);
+					Mat refcp(ny2,nx2,CV_64FC1);
 					Mat temp;
-					_ref->convertTo(temp,CV_32FC1);
+					_ref->convertTo(temp,CV_64FC1);
 
 					int *data2;
 					data2 = new int[nx2 * ny2];
@@ -391,15 +401,16 @@ void __haralickfeatures(const char* objects, const char* ref, const char* absref
 						{
 							y2 =*ity;
 							x2 =*itx;
-							refcp.at<float>(j,i) = temp.at<float>(x2,y2);
+							refcp.at<double>(i,j) = temp.at<double>(y2,x2);
 							data2[((i)*nx2+j)]=data[((y2)*nx+x2)];
 						}
 					}
 
 					//
 					cm.clear();
+
 					this->featcalc->haralickMatrix(data2,_objvec->size(), refcp, bins, cm);
-					featureWriter->dontCountFile(fname);
+					featureWriter->dontCountFile(fname.c_str());
 					delete[] data2;
 			}
 			else
@@ -411,10 +422,10 @@ void __haralickfeatures(const char* objects, const char* ref, const char* absref
 			// now calculate features
 			indvals.clear();
 			this->featcalc->haralickFeatures(cm, indvals,bins,_objvec->size());
-			string n_fname;
-			n_fname.append(suff);
-			n_fname.append(".dat");
-			this->featureWriter->writeNew(header_f.c_str(),fname,n_fname.c_str(),indvals);
+			string endf;
+			endf.append(suff);
+			endf.append(".dat");
+			this->featureWriter->writeNew(header_f.c_str(),fname,endf.c_str(),indvals);
 
 		}
 		// end loop
@@ -460,7 +471,7 @@ void __filterobjects(const char *load_objects, const char *save_objects, int &mi
 
 			for (vloP::iterator it = obj1->begin(); it!=obj1->end(); ++it)
 					{
-						if(((*it).size()>min) && ((*it).size()<max)) obj2.push_back(*it); 
+						if(((*it).size()>min) && ((*it).size()<=max)) obj2.push_back(*it); 
 					}
 						
 	}
@@ -483,6 +494,64 @@ void __filterobjects(const char *load_objects, const char *save_objects, int &mi
 	tr.message("Total eliminated: ",(obj1->size()-obj2.size()));
 	pool->storelObj(obj2,save_objects);
 }
+
+/*****************************************
+
+COMPUTE ALL FEATURES
+
+********************************************/
+	void _allfeatures(std::vector<MType *> parValues, unsigned int pid)
+	{
+
+	 // append date 0
+	 // append name 1
+	 bool basic = (dynamic_cast<MBoolType*>(parValues[2]))->getValue(); // feature
+	 string foutput	= (dynamic_cast<MStringType*>(parValues[3]))->getValue(); 
+	 bool haralick = (dynamic_cast<MBoolType*>(parValues[4]))->getValue();
+	 string objects	= (dynamic_cast<MStringType*>(parValues[5]))->getValue();  // loadObjects
+	 bool moment = (dynamic_cast<MBoolType*>(parValues[6]))->getValue();
+	 string reference_image	= (dynamic_cast<MStringType*>(parValues[7]))->getValue();  // imageName (output>
+	 bool save_ind = (dynamic_cast<MBoolType*>(parValues[8]))->getValue(); // feature
+	 bool shape = (dynamic_cast<MBoolType*>(parValues[9]))->getValue();
+
+	 string ref;
+	 this->combnames(objects,pid,objects);
+	 this->combnames(reference_image,pid,ref);
+
+	 __allfeatures(objects.c_str(),ref,foutput.c_str(),save_ind,basic,shape,moment,haralick);
+
+	}
+
+
+void __allfeatures(const char* objects, string &ref, const char* foutput,bool save_ind, bool basic, bool shape, bool moment, bool haralick)
+{
+	if(basic)
+	{
+		__basicfeatures(objects,ref.c_str(),foutput,save_ind);
+	}
+	if(shape)
+	{
+	__shapefeatures(objects,ref.c_str(),foutput,save_ind);
+	}
+	if(moment)
+	{
+	__momentfeatures(objects,ref,foutput,save_ind,false);
+	__momentfeatures(objects,ref,foutput,save_ind,true);
+	
+	}
+	if(haralick)
+	{
+		 vector<int> _scales;
+		 _scales.push_back(1);
+		 _scales.push_back(2);
+		 string n_name("HAR_");
+		 n_name.append(foutput);
+		 __haralickfeatures(objects,ref.c_str(),_scales,8,n_name.c_str());
+	}
+
+	return;
+}
+
 /* CHAIN CODE Algorithm
 *   used direction-to-code convention is:       3  2  1
 %                                                \ | /

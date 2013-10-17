@@ -4,7 +4,6 @@
 #include <queue>
 #include <vector>
 #include <math.h>
-// #include <boost/heap/priority_queue.hpp>
 #include "proctools.h"
 
 using namespace std;
@@ -81,7 +80,7 @@ inline static double Difference(Mat &image,
   } 
   double dEucl = (double(i1)-i2)*(double(i1)-i2) + (double(j1)-j2)*(double(j1)-j2);
   return  sqrt((pixel_diff*pixel_diff + lambda*dEucl)/(1.0 + lambda));
-  //return (sqrt(pixel_diff*pixel_diff + (fabs((double) i1 - i2) + fabs((double) j1 - j2)) * lambda * lambda));
+ // return (sqrt(pixel_diff*pixel_diff + (fabs((double) i1 - i2) + fabs((double) j1 - j2)) * lambda * lambda));
 }
 
 
@@ -176,6 +175,8 @@ int  SegmentationProcessing::__propagate(const char* seeds, const char* input,co
 	vloP* labels_in = pool->getlObj(seeds);
 	Mat*  image = pool->getImage(input);
 	Mat*  _mask = pool->getImage(mask);
+	tr.printMatrixInfo("IMAGE",*image);
+	tr.printMatrixInfo("mask",*_mask);
 
 
 	if(image->channels()>1)
@@ -198,7 +199,7 @@ int  SegmentationProcessing::__propagate(const char* seeds, const char* input,co
 	vloP objects_out;
 
 	unsigned int i, j;
-	PixelQueue pq(n*m);
+	PixelQueue pq;
 
 	for (i=0; i<m*n; i++)
 	{
@@ -240,7 +241,7 @@ int  SegmentationProcessing::__propagate(const char* seeds, const char* input,co
   while (! pq.empty())
   {
 		Pixel p = pq.top();
-	//	pq.pop();  // for priority_queues from standard or boost
+		pq.pop();  // for priority_queues from standard or boost
 		
 		 if (dists[IJ(p.i, p.j)] > p.distance)
 		 {
@@ -327,6 +328,65 @@ void SegmentationProcessing::contaminate(vloP &o_out,Mat &lab_copy,int i, int j,
 return;
 }
 
+
+/*****************************************************************************************************
+*  CONTAMINATION ALG
+*  Simple stack which propagates a tag in four directions.
+*  The diagonals are not considered "touching" neighbors. 
+*******************************************************************************************************/
+void SegmentationProcessing::contaminate(vloP &o_out,Mat &lab_copy,int i, int j,unsigned int &last_tag,int limit){
+
+	stack <Point> checked;
+	int _i, _j;
+	Point n;
+	checked.push(Point(j,i));
+	o_out.push_back(loP());
+	
+	o_out[last_tag].push_back(Point(j,i));
+	lab_copy.at<float>(i,j)=0;
+
+	while(!checked.empty())
+	{
+		n = checked.top();
+		checked.pop();	
+		_i = n.y;
+		_j = n.x;
+		
+		
+		if ( _i+1 < lab_copy.rows) 
+			if(lab_copy.at<float>(_i+1,_j)==limit)
+			{ 		
+				lab_copy.at<float>(_i+1,_j)=0.0;
+				checked.push(Point(_j,_i+1));	
+				o_out[last_tag].push_back(Point(_j,_i+1));
+			}
+		if ( _j+1 < lab_copy.cols) if(lab_copy.at<float>(_i,_j+1)==limit)
+			{ 
+				lab_copy.at<float>(_i,_j+1)=0.0;
+				checked.push(Point(_j+1,_i));	
+				o_out[last_tag].push_back(Point(_j+1,_i));
+		    }
+		if ( _i-1 > 0)
+			if(lab_copy.at<float>(_i-1,_j)==limit)
+		    {
+				lab_copy.at<float>(_i-1,_j)=0.0;
+				checked.push(Point(_j,_i-1));	
+				o_out[last_tag].push_back(Point(_j,_i-1));
+			}
+		if ( _j-1 > 0)
+			if(lab_copy.at<float>(_i,_j-1)==limit)
+			{
+			  lab_copy.at<float>(_i,_j-1)=0.0;
+			  checked.push(Point(_j-1,_i));	
+			  o_out[last_tag].push_back(Point(_j-1,_i));
+			}	
+	}
+	last_tag++;	
+return;
+}
+
+
+
 /*****************************************************************************************************
 *  LABEL
 *  Given a binary image (8U) creates a vector of objects.
@@ -377,7 +437,7 @@ int SegmentationProcessing::__splitbyOtsu(const char* reference, const char* loa
 	Mat*  ref_im = pool->getImage(reference);
 	
 	// Initialize blank image to 8 bits for binarization
-	Mat ref2(ref_im->rows,ref_im->cols, CV_8UC1, Scalar(0));
+	Mat ref2(ref_im->rows,ref_im->cols, CV_32FC1, Scalar(0));
 
 
 
@@ -388,10 +448,12 @@ int SegmentationProcessing::__splitbyOtsu(const char* reference, const char* loa
 	// 
 	loP *vm;
 	int i,j;
+	double count=0;
 	for (vloP::iterator it = lobj_in->begin(); it!=lobj_in->end(); ++it)
 	{	
 				vm = &(*it);
 				t = proctools::otsu_thresh(*ref_im,*vm);
+				count++;
 				for (loP::iterator obj = it->begin(); obj!=it->end(); ++obj)
 				{			    
 				   j = obj->x;
@@ -399,11 +461,11 @@ int SegmentationProcessing::__splitbyOtsu(const char* reference, const char* loa
 				   // Each point under the threshold is removed.
 				   if((ref_im->at<float>(i,j))<t) 
 					{	
-				       ref2.at<uchar>(i,j)=0;
+				       ref2.at<float>(i,j)=0.0;
 				    }
 				   else
 				   {
-				      ref2.at<uchar>(i,j)=255;
+				      ref2.at<float>(i,j)=count;
 				   }
 				}
   }
@@ -418,12 +480,12 @@ int SegmentationProcessing::__splitbyOtsu(const char* reference, const char* loa
    
 	for(int i = 0; i < ref2.rows; i++)
 	{
-		const uchar* Mi = ref2.ptr<uchar>(i);
-		for(int j = 0; j < ref2.cols; j++)
+		const float* Mi = lab_copy.ptr<float>(i);
+		for(int j = 0;  j < ref2.cols; j++)
 		{
-			if(Mi[j]!=0)
+			if(Mi[j]>0.001)
 			{
-			SegmentationProcessing::contaminate(objects_out,lab_copy,i,j,total_objs);
+			SegmentationProcessing::contaminate(objects_out,lab_copy,i,j,total_objs,Mi[j]);
 			}
 		}
 	 }

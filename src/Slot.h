@@ -3,10 +3,6 @@
 
 #include <opencv2/opencv.hpp>
 #include <iostream>
-#include "utils.h"
-
-
-
 
 using namespace cv;
 
@@ -21,12 +17,25 @@ class Slot
 		Slot()
 		{
 		_id=new string("");
+#if __linux__
+	#if GCC_VERSION > 40600			
 		_image = nullptr;
+	#endif
+#else
+		_image = nullptr;
+#endif
 		} 
 		Slot(const char* id)
         {
 		_id = new string(id);
+		
+#if __linux__
+	#if GCC_VERSION > 40600			
 		_image = nullptr;
+	#endif
+#else
+	_image = nullptr;
+#endif
 		 }
 
 		 ~Slot()
@@ -48,7 +57,15 @@ class Slot
 
 	    void setId(const char* id)
 		{
+	#if __linux__
+		#if GCC_VERSION > 40600		
 	    	if(_id!=nullptr) delete id;
+		#else
+		    if(!id) delete id;
+		#endif
+	#else
+			if(_id!=nullptr) delete id;
+    #endif	
 	    	_id=new string(id);
 		}
 
@@ -60,7 +77,15 @@ class Slot
 
 		inline  void setValue(IMAGE &image) 
 		{  
-		if(_image!=nullptr) delete _image;
+	#if __linux__
+		#if GCC_VERSION > 40600		
+	    	if(_image!=nullptr) delete _image;
+		#else
+		    if(!image) delete _image;
+		#endif
+	#else
+			if(_image!=nullptr) delete _image;
+    #endif
 		_image = new IMAGE(image);
 		}
 };

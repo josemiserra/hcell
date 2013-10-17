@@ -9,6 +9,7 @@
 #include <sstream>
 #include <bitset>
 #include <stdio.h>
+#include "utils.h"
 
 
 using namespace std;
@@ -23,6 +24,8 @@ struct FeaturesPipe
 	int _fcount; // total number of files
 	bitset<12> _options;
 
+	vector<string> original_filenames;
+
 	string _gen_filename;
 	string _gheader;
 	ofstream fgout;
@@ -36,7 +39,7 @@ struct FeaturesPipe
 	void setReference(string reference)
 	{
 		_sreference = reference;
-		_reference = reference.c_str();
+		_reference = _sreference.c_str();
 	}
 	void setGenFilename(string gfilename)
 	{
@@ -44,40 +47,59 @@ struct FeaturesPipe
 	}
 };
 
+		enum FEATURES {	
+							H_BASIC,
+							H_SHAPE,
+							H_MOMENT,
+							H_HARALICK,
+							H_PART,
+							H_ALL
+					 };
 
 class Writer
 {
 private:
 	 vector<FeaturesPipe*> _fpipe;
-	 vector<string> header;
-
+	 vector<string> headerB,headerS,headerM;
+	 vector<vector<string>> headers;
 
 public:
 
 	Writer()
 	{
-		header.push_back(" b.mean \t"); // 0 
-		header.push_back(" b.sd \t"); //1
-		header.push_back(" b.mad \t"); //2
-		header.push_back(" b.q0.01 \t"); //3
-		header.push_back(" b.q0.05 \t");
-		header.push_back(" b.q0.5 \t");
-		header.push_back(" b.q0.95 \t");
-		header.push_back(" b.q0.99 \t"); // 
+		headerB.push_back("b.mean \t"); // 0 
+		headerB.push_back("b.sd \t"); //1
+		headerB.push_back("b.mad \t"); //2
+		headerB.push_back("b.q0.01 \t"); //3
+		headerB.push_back("b.q0.05 \t");
+		headerB.push_back("b.q0.5 \t");
+		headerB.push_back("b.q0.95 \t");
+		headerB.push_back("b.q0.99 \t"); // 
 
-		header.push_back(" s.area \t"); // 4
-		header.push_back(" s.perimeter \t");
-		header.push_back(" s.radius.mean \t"); // 6
-		header.push_back(" s.radius.max \t");
-		header.push_back(" s.radius.min \t");
-		header.push_back(" s.roundness \t"); //7
+		headerS.push_back("s.area \t"); // 4
+		headerS.push_back("s.perimeter \t");
+		headerS.push_back("s.radius.mean \t"); // 6
+		headerS.push_back("s.radius.max \t");
+		headerS.push_back("s.radius.min \t");
+		headerS.push_back("s.roundness \t"); //7
 
-		header.push_back(" m.cx \t"); // 8
-		header.push_back(" m.cy \t");
-		header.push_back(" m.major.axis \t"); //9
-		header.push_back(" m.minor.axis \t");
-		header.push_back(" m.eccentricity \t");
-		header.push_back(" m.theta \t");
+		headerM.push_back("m.cx \t"); // 8
+		headerM.push_back("m.cy \t");
+		headerM.push_back("m.major.axis \t"); //9
+		headerM.push_back("m.minor.axis \t");
+		headerM.push_back("m.eccentricity \t");
+		headerM.push_back("m.theta \t");
+
+		headerM.push_back("m.0.cx \t"); // 8
+		headerM.push_back("m.0.cy \t");
+		headerM.push_back("m.0.major.axis \t"); //9
+		headerM.push_back("m.0.minor.axis \t");
+		headerM.push_back("m.0.eccentricity \t");
+		headerM.push_back("m.0.theta \t");
+
+		headers.push_back(headerB);
+		headers.push_back(headerS);
+		headers.push_back(headerM);
 	};
 
 	~Writer(void)
@@ -105,70 +127,115 @@ public:
 
 	void buildHeaders()
 	{
-		int count;
+		buildHeaders(FEATURES::H_PART);
+	}
+
+	void buildHeaders(int module)
+	{
+		
+		int count,count2;
+
 		FeaturesPipe *fp;
 		for(vector<FeaturesPipe*>::iterator it= this->_fpipe.begin(); it!=this->_fpipe.end();++it)
 		{
 		
 			fp=(*it);
 	  
-			fp->_gheader +=" File \t";
-		    fp->_gheader +=" NObj \t";
-			fp->_iheader +=" NObj \t";
+			fp->_gheader +="File \t";
+		    fp->_gheader +="NObj \t";
+			fp->_iheader +="NObj \t";
 	  
-			int hcount=0;
-			for(unsigned int i=0;i<fp->_options.size();i++,hcount++)
+			// BASIC
+			count=0;
+			for(unsigned int i=0;i<4;i++,count++)
 			{
-			
-			
 			 if(fp->_options[i])
 				{
-			        					
-					    fp->_gheader+=" mean_"+header[hcount];
-						fp->_gheader+=" sd_"+header[hcount];
-						fp->_iheader+=header[hcount];
-						if(i==3)
-						{ 
-							count = 0;
-							
-							while(count<4)	//quantiles
+					fp->_gheader+="mean."+(headerB[count]);
+					fp->_gheader+="sd."+(headerB[count]);
+					fp->_iheader+=headerB[count];
+					if(i==3)
+					{ 
+						count2 = 0;	
+						while(count2<4)	//quantiles
 							{
 								count++;
-								fp->_gheader+=" mean_"+header[hcount+count];
-								fp->_gheader+=" sd_"+header[hcount+count];
-								fp->_iheader+=header[hcount+count];
-								
-								
+								count2++;
+								fp->_gheader+="mean."+headerB[count];
+								fp->_gheader+="sd."+headerB[count];
+								fp->_iheader+=headerB[count];	
 							}
-						}
-						
-						if(i==8 || i==9) //centroid and axis
-						{
-
-								fp->_gheader+=" mean_"+header[hcount+1];
-								fp->_gheader+=" sd_"+header[hcount+1];
-								fp->_iheader+=header[hcount+1];						
-						}
-
-						if(i==6)
-						{
-							count=0;
-							while(count<2)	//radius
+					}
+				}	
+			}		
+			// SHAPE
+			count = 0;
+			for(unsigned int i=0;i<4;i++,count++)
+			{
+			 if(fp->_options[i+4])
+				{
+					fp->_gheader+="mean."+(headerS[count]);
+					fp->_gheader+="sd."+(headerS[count]);
+					fp->_iheader+=headerS[count];	
+			 		if(i==2)
+					{
+							count2=0;
+							while(count2<2)	//radius
 							{
 								count++;
-								fp->_gheader+=" mean_"+header[hcount+count];
-								fp->_gheader+=" sd_"+header[hcount+count];
-								fp->_iheader+=header[hcount+count];
+								count2++;
+								fp->_gheader+="mean."+headerS[count];
+								fp->_gheader+="sd."+headerS[count];
+								fp->_iheader+=headerS[count];
 							}
+					}
+			 }
+			}
+	/******************************************************************************/
+			 // MOMENT	
+			count=0;
+			for(unsigned int i=0;i<4;i++,count++)
+			{
+				 if(fp->_options[i+8])				 
+				{	
+					fp->_gheader+="mean."+(headerM[count]);
+					fp->_gheader+="sd."+(headerM[count]);
+					fp->_iheader+=headerM[count];		
+
+					if(i==0 || i==1) //centroid and axis
+					{
+						++count;
+						fp->_gheader+="mean."+headerM[count];
+						fp->_gheader+="sd."+headerM[count];
+						fp->_iheader+=headerM[count];						
+					}
+				}
+			}		
+			 // MOMENT NO REF
+			if(module == FEATURES::H_ALL)
+			{
+				for(unsigned int i=0;i<4;i++,count++)
+				{
+				 if(fp->_options[i+8])				 
+					{	
+					fp->_gheader+="mean."+(headerM[count]);
+					fp->_gheader+="sd."+(headerM[count]);
+					fp->_iheader+=headerM[count];		
+
+					if(i==0 || i==1) //centroid and axis
+						{
+						++count;
+						fp->_gheader+="mean."+headerM[count];
+						fp->_gheader+="sd."+headerM[count];
+						fp->_iheader+=headerM[count];						
 						}
 					}
-					if(i==3) hcount+=4;
-					if(i==6) hcount+=2;
-					if(i==8 || i==9) hcount++;
-			} // end for
+				} // end for
+			}
+			fp->fgout << fp->_gheader <<endl;
 	  }
 
-		fp->fgout << fp->_gheader <<endl;
+		
 		
 	};
 
@@ -300,12 +367,12 @@ public:
 *  saved in a different file, with same name plus general.
 *  
 ***************************************************************************/
-	void writeNew(const char* header,const char *filename,const char *extra,vector<vector<double>> &indValues)
+	void writeNew(const char* header,string filename,const char *extra,vector<vector<double>> &indValues)
 	{
 		// Open file with filename
 		FeaturesPipe *fp;
 		// obtain the struct associated to the image.
-		fp = getFeaturePipe(filename);
+		fp = getFeaturePipe(filename.c_str());
 		string _filename = fp->_ind_filenames[fp->_fcount];
 		// Add extra info
 		_filename.append(extra);

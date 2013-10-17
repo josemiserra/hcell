@@ -27,10 +27,9 @@ Action::TypesMap Action::initialize(){
 	 amap["APPEND_DATE"]=boolT;
 	 amap["APPEND_ORIGINAL_NAME"]=boolT;
 /**NORMALIZE**/
-	 	 amap["TYPE"]=stringT;
-	 	 amap["MAXINT"]=doubleT;
-	 	 amap["MININT"]=doubleT;
-
+	 amap["TYPE"]=stringT;
+	 amap["MAXINT"]=doubleT;
+	 amap["MININT"]=doubleT;
 /**CROP_FILE**/
 	amap["COORDINATES_X"]=intT;
 	amap["COORDINATES_Y"]=intT;
@@ -79,7 +78,7 @@ Action::TypesMap Action::initialize(){
 	amap["APPROXIMATION"]=stringT;
 
  /**KERNELs and FILTERS***/
-	amap["FACTOR"]=doubleT;
+	amap["DFACTOR"]=doubleT;
 	amap["MATRIX"]=stringT;
 	amap["KERNEL_NAME"]=stringT;
  /**ADAPTATIVE THRESHOLDING**/
@@ -106,6 +105,12 @@ Action::TypesMap Action::initialize(){
 	amap["PAINT_CONTOURS"]=boolT;
 
 	/**FEATURES**/
+	amap["BASIC"]=boolT;
+	amap["SHAPE"]=boolT;
+	amap["HARALICK"]=boolT;
+	amap["MOMENT"]=boolT;
+
+
 	amap["MEAN"]=boolT;
 	amap["SD"]=boolT;
 	amap["MAD"]=boolT;
@@ -143,9 +148,14 @@ Action::TypesMap Action::initialize(){
 	amap["MINIMUM"]=intT;
 	amap["MAXIMUM"]=intT;
 	amap["BY"]=stringT;
-
 	/**OPERATORS **/
-	amap["FACTOR"]=doubleT;
+	amap["FACTOR"]=stringT;
+	amap["OUTPUT_FACTOR"]=stringT;
+
+	
+/**GBLOB options**/
+	amap["SEQUENCE"]=intT;
+	amap["BETA"]=doubleT;
 
 	return amap;
 }

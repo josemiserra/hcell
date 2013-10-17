@@ -1,6 +1,9 @@
+#ifndef _WATERSHED_SEGMENTER_
+#define _WATERSHED_SEGMENTER_
 #include "opencv2/opencv.hpp"
 #include <string>
 #include <list>
+#include <utility>
 #include "utils.h"
 
 #define BG 0.0
@@ -9,20 +12,33 @@ using namespace cv;
 using namespace std;
 #define IJK(i,j) ((i)*nx+(j))
 
-// #if GCC_VERSION < 40500
 
-struct less_than_index
-{
-    inline bool operator() ( int i1, int i2)
-    {
-        return  i1 < i2;
-    }
-};
-// #endif
+#ifdef __linux__
+	#if GCC_VERSION < 40600
+
+	struct ordering {
+		bool operator ()(pair<size_t, double> const& a, pair<size_t, double> const& b) {
+        return (a.second) < (b.second);
+		}
+	};
+	#else
+	template <typename T>
+	vector<int> sorted_indexes(const vector<T> &v)
+	{
+
+	// initialize original index locations
+	vector<int> idx(v.size());
+	for (unsigned int i = 0; i != idx.size(); ++i) idx[i] = i;
 
 
+	sort(idx.begin(), idx.end(),
+	    [&v](int i1, int i2) {return v[i1] < v[i2];});
 
-template <typename T>
+	return idx;
+	}
+	#endif
+#else
+	template <typename T>
 	vector<int> sorted_indexes(const vector<T> &v)
 	{
 
@@ -31,19 +47,12 @@ template <typename T>
 	for (unsigned int i = 0; i != idx.size(); ++i) idx[i] = i;
 
 	// sort indexes based on comparing values in v
-// #if GCC_VERSION > 40500  // for lambda expression
-//	sort(idx.begin(), idx.end(),
-//	    [&v](int i1, int i2) {return v[i1] < v[i2];});
-//#else
-	sort(idx.begin(), idx.end(),less_than_index());
-//#endif
-
-
-
-
+	sort(idx.begin(), idx.end(),
+    [&v](int i1, int i2) {return v[i1] < v[i2];});
 
 	return idx;
 	}
+#endif
 
 class WatershedSegmenter{
 private:
@@ -71,6 +80,28 @@ public:
 	}
 
 /*----------------------------------------------------------------------- */
+#ifdef __linux__
+	#if GCC_VERSION < 40600
+	vector<int> sorted_indexes(const vector<double> &v)
+	{
+		 vector<pair<size_t,double>>order(v.size());
+
+		size_t n = 0;
+		for (vector<double>::const_iterator it = v.begin(); it != v.end(); ++it, ++n)
+			order[n] = make_pair(n, *it);
+
+		sort(order.begin(), order.end(), ordering());
+
+		vector<int> ret(v.size());
+		size_t const size = v.size();
+		for (size_t i = 0; i < size; ++i)
+		        ret[i] = order[i].first;
+
+		return ret;
+
+		}
+	#endif
+#endif
 
 
 /******************************************************************************************************/
@@ -243,3 +274,5 @@ distanceXY (const Point pt1, const Point pt2) {
 }
 
 };
+
+#endif

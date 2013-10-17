@@ -223,8 +223,14 @@ static void getContours(vloP &objects_in,vloP &contours,unsigned int rows, unsig
 
 	 void display(Mat image,const char* windowsName="",int width=800,int height=600)
 	 {
+	 #ifdef  __linux__
 		namedWindow( windowsName,  CV_WINDOW_AUTOSIZE );
 		imshow(windowsName, image );
+     #else
+		namedWindow( windowsName,  CV_WINDOW_NORMAL );
+		imshow(windowsName, image );
+		cvResizeWindow(windowsName,width,height);
+	 #endif	
 		waitKey(0);
      
 		}
@@ -276,14 +282,18 @@ static void getContours(vloP &objects_in,vloP &contours,unsigned int rows, unsig
 	 sprintf(buffer,"%d", n);
 	 strcat(buffer,name);
 	 return buffer; */
-
-#if GCC_VERSION > 40600
-		newname = std::to_string(n);
+	string _name;
+#ifdef __linux__
+	#if GCC_VERSION > 40600
+		 _name = std::to_string(n);
+	#else
+		  _name = std::to_string(static_cast<long long>(n));
+	#endif
 #else
-		newname = std::to_string(static_cast<long long>(n));
+	       _name = to_string(static_cast<long long>(n));
 #endif
-
-	 newname.append(name);
+	 _name.append(name);
+	 newname=_name;
 	 return;
 
 	}

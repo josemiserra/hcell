@@ -3,6 +3,8 @@
 #define MAX_PARAMS 50
 
 
+using namespace std;
+
 static int gPass = 0;
 static int gFail = 0;
 
@@ -79,7 +81,7 @@ vector<Action *> XmlManager::getActionsList(const char* filename){
 
 		if ( !loadOkay )
 		{
-			cout<< "Could not load file. Error="<< doc.ErrorDesc() << ". Exiting.\n" <<endl;
+			cout<< "Could not load file. Error="<< doc.ErrorDesc() <<endl;
 			
 			exit( -2011 );
 		}
@@ -90,6 +92,7 @@ vector<Action *> XmlManager::getActionsList(const char* filename){
 
 		TiXmlNode* node = 0;
 		TiXmlElement* paramElement = 0;
+		TiXmlElement* itemElement = 0;
 	    TiXmlElement* element=0;
 
 

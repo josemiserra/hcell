@@ -18,7 +18,15 @@
 #include <getopt.h>
 #include <vector>
 #include <string>
-#include "InputValues.h"
+
+struct InputValues{
+		const char *filename;
+		const char *indir;
+		const char *outdir;
+		bool verbose_on;
+};
+
+
 
 class Hcell
 {

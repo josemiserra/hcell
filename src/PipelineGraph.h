@@ -7,6 +7,13 @@
 // #include <boost/graph/adjacency_list.hpp>
 // #include <boost/graph/topological_sort.hpp>
 
+struct Node {
+ string method_name;
+ vector<string> list_of_inputs;
+ vector<string> list_of_outputs;
+};
+
+
 
 class PipelineGraph
 {

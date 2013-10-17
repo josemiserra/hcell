@@ -36,7 +36,8 @@ class FileProcessing :
 							PBM
 						 };
 			 
-		enum NORM {
+		enum NORM {			
+							MAX,
 							MAXMIN,
 							LOG
 						 };
@@ -53,6 +54,8 @@ class FileProcessing :
 		tFunc["BLEND"] = &FileProcessing::_blend;
 		tFunc["PAINT OBJECTS"] = &FileProcessing::_paintObjects;
 		tFunc["SHOW"] = &FileProcessing::_show;
+		tFunc["PRINT"] = &FileProcessing::_print;
+		
 		/*-----------FLAGS-------------------------------------*/
 		strtoFormat["PNG"]=FILEFORMATS::PNG;
 		strtoFormat["JPG"]=FILEFORMATS::JPG;
@@ -107,6 +110,14 @@ class FileProcessing :
 	
 	
 	}
+
+	void _print(std::vector<MType *> parValues, unsigned int pid)
+	{
+	   
+	   string message = (dynamic_cast<MStringType*>(parValues[0]))->getValue(); // HEIGHT 
+	   cout<< message <<endl;
+	}
+
 
 /****************************************************************************
  * LOAD FILE
@@ -205,12 +216,12 @@ void _normalize(std::vector<MType *> parValues, unsigned int pid)
 {
 	   bool ashow =  (dynamic_cast<MBoolType*>(parValues[0]))->getValue(); // showImage (ASHOW)
 	   string input= (dynamic_cast<MStringType*>(parValues[1]))->getValue(); //input
-	   double maxint = (dynamic_cast<MDoubleType*>(parValues[2]))->getValue();
-	   double minint = (dynamic_cast<MDoubleType*>(parValues[3]))->getValue();
+	   double maxint = (dynamic_cast<MDoubleType*>(parValues[2]))->getValue(); 
+	   double minint = (dynamic_cast<MDoubleType*>(parValues[3]))->getValue(); 
 	   string output	= (dynamic_cast<MStringType*>(parValues[4]))->getValue();  // imageName (output>
 	   string itype	= (dynamic_cast<MStringType*>(parValues[5]))->getValue(); // Type of normalization (max/min, log...)
 	   const char *wName	= (dynamic_cast<MStringType*>(parValues[6]))->getValue(); // windowName
-
+	  
 
 	   this->combnames(input,pid,input);
 	   this->combnames(output,pid,output);
@@ -256,58 +267,85 @@ void __normalize(const char* input, const char* output,int opt,double maxint=1.0
 	if(maxint>1) tr.message("WARNING: maxint must be between 0 and 1");
 	if(minint>1 || minint > maxint) tr.message("WARNING: maxint must be between 0 and 1 and less than maxint.");
 
-	if(opt == NORM::MAXMIN)
+
+	if(opt == NORM::MAX)
 	{
+		if(type==CV_8U)
+			{
+			image->convertTo(image2,CV_32F,1.0/max,0);
+			image->convertTo(*image,CV_8UC1,255.0/(max),0);
+			
+			}
+			if(type==CV_16U)
+			{
+			image->convertTo(image2,CV_32F,1.0/max,0);
+			image->convertTo(*image,CV_16UC1, 65535.0/max,0);
+			
+			}
+			else
+			{
+			image->convertTo(image2,CV_32F,1.0/max,0);
+			}
+	
+	}
+	if(opt == NORM::MAXMIN)
+	{ 
 
 		if(maxint<1 || minint>0)
 		{
-			double top=1.0;
+			double top=max;
 			if(type==CV_8U) top = 255.0;
 			if(type==CV_16U)  top = 65535.0;
 			image->convertTo(image2, CV_32F);
 
 			for( int y = 0; y < image->rows; y++ )
 			 for( int x = 0; x < image->cols; x++ )
-              {
+              {	
 				image2.at<float>(y,x)=image2.at<float>(y,x)/top;
 				if(image2.at<float>(y,x)>maxint) image2.at<float>(y,x)=maxint;
 				if(minint>0.0) image2.at<float>(y,x)=image2.at<float>(y,x)-minint;
 				if(image2.at<float>(y,x)<0) image2.at<float>(y,x)=0;
 				image2.at<float>(y,x)=image2.at<float>(y,x)/(maxint-minint);
-			   }
-
-		if(type==CV_8U)	  image2.convertTo(image2,CV_8UC1,255,0);
-		if(type==CV_16U)  image2.convertTo(image2,CV_16UC1,65535,0);
+			   } 
+		
+		if(type==CV_8U)	  image2.convertTo(*image,CV_8UC1,255,0);
+		if(type==CV_16U)  image2.convertTo(*image,CV_16UC1,65535,0);
+		if(type==CV_32F)  image2.copyTo(*image);
 		}
 		else
 		{
 			if(type==CV_8U)
 			{
-			image->convertTo(image2,CV_8UC1,255.0/(max - min), -min * 255.0/(max - min));
+			image->convertTo(image2,CV_32F,1.0/(max - min), -min * 1.0/(max - min));
+			image->convertTo(*image,CV_8UC1,255.0/(max - min), -min * 255.0/(max - min));
+			
 			}
 			if(type==CV_16U)
 			{
-			image->convertTo(image2,CV_16UC1, 65535.0/(max - min), -min *  65535.0/(max- min));
+			image->convertTo(image2,CV_32F,1.0/(max - min), -min * 1.0/(max - min));
+			image->convertTo(*image,CV_16UC1, 65535.0/(max - min), -min * 65535.0/(max- min));
+			
+			}
+			else
+			{
+			image->convertTo(image2,CV_32F,1.0/(max - min), -min * 1.0/(max - min));
 			}
 		}
 	}
-	else
-	{
 
-		if(opt == NORM::LOG)
-		{
+	if(opt == NORM::LOG) 
+	{
 		image->convertTo(image2, CV_32F);
 		for( int y = 0; y < image->rows; y++ )
 			for( int x = 0; x < image->cols; x++ )
 				{
-				image2.at<float>(y,x)=image2.at<float>(y,x)/max;
+				image2.at<float>(y,x)=((image2.at<float>(y,x))/(max));
 				image2.at<float>(y,x)= 1-(log(image2.at<float>(y,x))/log(min/max));
 				}
  
-	 if(type==CV_8U) image2.convertTo(image2,type,255,0);
-	 if(type==CV_16U) image2.convertTo(image2,type,65535,0);
-   
-		}
+	  if(type==CV_8U) image2.convertTo(*image,type,255,0);
+	  if(type==CV_16U) image2.convertTo(*image,type,65535,0);
+	  if(type==CV_32F) image2.copyTo(*image);
 	}
 
 	 pool->storeImage(image2,output);
@@ -479,7 +517,8 @@ void _rgbImage(std::vector<MType *> parValues, unsigned int pid)
 
 int __rgbImage(const char* redim, const char* greenim, const char* blueim,const char*output,unsigned int pid){
 
-	Mat *redch, *greench,*bluech;
+	Mat *redchx, *greenchx,*bluechx;
+	Mat redch, greench,bluech;
 	Mat color;
 	bool rt, gt, bt;
 	bt=gt=rt=false;
@@ -490,40 +529,43 @@ int __rgbImage(const char* redim, const char* greenim, const char* blueim,const 
 
 	if(nullf.compare(redim)!=0)
 	{
-		redch=pool->getImage(redim);
+		redchx=pool->getImage(redim);
+		redchx->copyTo(redch);
 		rt=true;
-		rws=redch->rows;
-		cls=redch->cols;
-		minMaxLoc(*redch, &minVal, &maxVal); 
-		if(redch->channels()>1) cvtColor(*redch,*redch, CV_RGB2GRAY);
-		redch->convertTo(*redch,CV_8UC1,255.0/(maxVal - minVal), -minVal * 255.0/(maxVal - minVal));
+		rws=redch.rows;
+		cls=redch.cols;
+		minMaxLoc(redch, &minVal, &maxVal); 
+		if(redch.channels()>1) cvtColor(redch,redch, CV_RGB2GRAY);
+		redch.convertTo(redch,CV_8UC1,255.0/(maxVal - minVal), -minVal * 255.0/(maxVal - minVal));
 	}
 	if(nullf.compare(greenim)!=0)
 	{ 
-	   cout << "Green is going to pring"<<endl;
-	   greench=pool->getImage(greenim);
+	   cout << "Green is going to pring :)"<<endl;
+	   greenchx=pool->getImage(greenim);
+	   greenchx->copyTo(greench);
 	   gt = true;
-	   rws=greench->rows;
-	   cls=greench->cols;	
-	   if(greench->channels()>1)
+	   rws=greench.rows;
+	   cls=greench.cols;	
+	   if(greench.channels()>1)
 	   {
-	   cvtColor(*greench,*greench, CV_RGB2GRAY);
+	   cvtColor(greench,greench, CV_RGB2GRAY);
 	   }
-	    minMaxLoc(*greench, &minVal, &maxVal); 
-	   greench->convertTo(*greench,CV_8UC1,255.0/(maxVal - minVal), -minVal * 255.0/(maxVal - minVal));
+	    minMaxLoc(greench, &minVal, &maxVal); 
+	   greench.convertTo(greench,CV_8UC1,255.0/(maxVal - minVal), -minVal * 255.0/(maxVal - minVal));
 	}
 	 if(nullf.compare(blueim)!=0)
 	 { 
-		 bluech=pool->getImage(blueim);
+		 bluechx=pool->getImage(blueim);
+		 bluechx->copyTo(bluech);
 		 bt = true;
-		 rws=bluech->rows;
-	     cls=bluech->cols;
-		 minMaxLoc(*bluech, &minVal, &maxVal); 
-		   if(bluech->channels()>1)
+		 rws=bluech.rows;
+	     cls=bluech.cols;
+		 minMaxLoc(bluech, &minVal, &maxVal); 
+		   if(bluech.channels()>1)
 		   {
-			   cvtColor(*bluech,*bluech, CV_RGB2GRAY);
+			   cvtColor(bluech,bluech, CV_RGB2GRAY);
 		   }
-		 bluech->convertTo(*bluech,CV_8UC1,255.0/(maxVal - minVal), -minVal * 255.0/(maxVal - minVal));
+		 bluech.convertTo(bluech,CV_8UC1,255.0/(maxVal - minVal), -minVal * 255.0/(maxVal - minVal));
  
 	 }
 
@@ -532,13 +574,13 @@ int __rgbImage(const char* redim, const char* greenim, const char* blueim,const 
 	// Create a vector containing the channels of the new colored image
 	std::vector<cv::Mat> channels;
 
-	if(bt) channels.push_back(*bluech);  // 1st channel
+	if(bt) channels.push_back(bluech);  // 1st channel
 	else channels.push_back(g);
 
-	if(gt) 	channels.push_back(*greench);  // 2nd channel
+	if(gt) 	channels.push_back(greench);  // 2nd channel
 	else channels.push_back(g);
 
-	if(rt) 	channels.push_back(*redch);  // 2nd channel
+	if(rt) 	channels.push_back(redch);  // 2nd channel
 	else channels.push_back(g);
 	
 	cv::merge(channels, color);
@@ -637,7 +679,12 @@ void _paintObjects(std::vector<MType *> parValues, unsigned int pid)
 
 	 this->__paintObjects(input.c_str(),output.c_str(),lobj.c_str(),*color,thickness, random,paintAsContours,width,height);
 	
-	 if(show){ display(output,wName,width,height); }
+	 if(show){ 
+		 Mat *img;
+		 Mat show_im;
+		 img =pool->getImage(output.c_str());
+		 img->convertTo(show_im,CV_8UC3);
+		 display(show_im,wName,width,height); }
 	 delete color;
 }
 
@@ -733,6 +780,9 @@ void __paintObjects(const char* input, const char* output, const char* sobj,Scal
 	
 	return;
 }
+
+
+
 
 };
 #endif // _FILE_PROCESSING_

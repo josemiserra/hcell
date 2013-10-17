@@ -2,3 +2,11 @@ VERSION 0.5.1
 	- Scalar and Matrix operators added
 	- New normalization function with max and min parameters.
 	- GCC 4.4 backwards compatibility added
+VERSION 0.5.2
+	- Function ALL FEATURES added
+	- Function GBLOB added
+	- MOMENT features can be computed now with reference or without reference.
+	- Windows version and Linux merged version except for files Hcell and Pipeline (.h.cpp)
+	- Improved algorithm for merging objects MERGE
+        - APPEND_NAME for features and write file now works!
+	

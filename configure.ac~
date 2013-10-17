@@ -13,7 +13,7 @@
 # Automake init
 # =============
 
-AC_INIT([hcell],[0.5],[serrajosemi@gmail.com],
+AC_INIT([hcell],[0.5.1],[serrajosemi@gmail.com],
 [hcell],[http:://hcellapp.blogspot.com/])
 AC_PREREQ([2.68])
 AC_LANG([C++])
@@ -63,7 +63,9 @@ AC_CHECK_HEADERS([sys/time.h])
 AC_CHECK_HEADERS([memory.h])
 
 
-
+AX_BOOST_BASE([1.40],[],[AC_MSG_ERROR(You need the Boost libraries. Download and install them or use sudo apt-get install libboost-all-dev.)])
+AX_BOOST_REGEX
+AX_CXX_COMPILE_STDCXX_0X
 
 if test "x$HAVE_OPENCV" = "xtrue"; then
 AC_CHECK_HEADERS([opencv2/opencv.hpp])
@@ -108,7 +110,7 @@ AC_CHECK_HEADERS([pam.h],[netpbmfound=1],[netpbmfound=0])
 AC_CHECK_LIB([tiff], [TIFFOpen], , [echo "You need libtiff!"; CHECKLIBS=false], -lm)
 
 if test "x$CHECKLIBS" = "xfalse"; then
-AC_MSG_ERROR(["Libraries libjpeg, libtiff, libjasper, libpng and netpbm are needed. Install any of those with the associated development packages (libjpeg-dev etc. on Debian/Ubuntu) if you want to use those stock libraries to read and write images in the respective formats. You also can link them from the versions supplied with OpenCV."])
+AC_MSG_ERROR(["Libraries libjpeg, libtiff, libjasper, libpng and netpbm are needed. Install any of those with the associated development packages (sudo apt-get install libjpeg-dev libtiff-dev libpng-dev netpbm libjasper-dev on Debian/Ubuntu) if you want to use those stock libraries to read and write images in the respective formats. You also can link them from the versions supplied with OpenCV."])
 fi
 
 # distribute additional compiler and linker flags among Makefiles

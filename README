@@ -1,0 +1,3 @@
+
+In case you want to execute an example type:
+hcell -i ./examples/Images -o ./examples/Output -f ./examples/pipeline1.xml
