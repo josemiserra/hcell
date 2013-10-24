@@ -139,7 +139,7 @@ class PoolManager
 			PoolManager::numImages++;
 			return sp1;
 		}
-		return NULL;
+
     	}
 
 
@@ -166,7 +166,7 @@ class PoolManager
 		   return sp1;
 		}
 
-			return NULL;
+
         }
 
 	/************************************************************************************************/

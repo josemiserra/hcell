@@ -81,7 +81,7 @@ class Slot
 		#if GCC_VERSION > 40600		
 	    	if(_image!=nullptr) delete _image;
 		#else
-		    if(!image) delete _image;
+		    if(!_image) delete _image;
 		#endif
 	#else
 			if(_image!=nullptr) delete _image;
