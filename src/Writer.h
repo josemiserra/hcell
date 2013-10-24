@@ -306,7 +306,10 @@ public:
 
 			fp->fgout<< filename <<" \t";
 
-			fp->fgout << fp->_indResults.size() <<"\t";
+			if(fp->_indResults.size()==1 && fp->_indResults[0][1]<0.00000000000000000001)
+				fp->fgout << 0 <<"\t";
+			else
+				fp->fgout << fp->_indResults.size() <<"\t";
 		// save the general features
 		for(vector<double>::iterator it= fp->_genResults.begin(); it!=fp->_genResults.end();++it)
 		{

@@ -149,7 +149,7 @@ Action::TypesMap Action::initialize(){
 	amap["MAXIMUM"]=intT;
 	amap["BY"]=stringT;
 	/**OPERATORS **/
-	amap["FACTOR"]=stringT;
+	amap["FACTOR"]=stringT;   
 	amap["OUTPUT_FACTOR"]=stringT;
 
 	

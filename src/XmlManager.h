@@ -30,8 +30,8 @@ public:
 	bool XmlTest( const char* testString, int expected, int found, bool noEcho = false );
 	std::vector<Action *> getActionsList(const char* filename);
 
+
 };
 
 
 #endif // _XMLManager_
-

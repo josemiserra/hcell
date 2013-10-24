@@ -1,7 +1,7 @@
 src/hcell-ActionLoader.o: src/ActionLoader.cpp src/ActionLoader.h \
  src/PModule.h src/PoolManager.h src/utils.h src/Slot.h src/MType.h \
  src/MAllTypes.h src/ModuleSelector.h src/FileProcessing.h src/Action.h \
- src/ImageProcessing.h src/SegmentationProcessing.h \
+ src/ImageProcessing.h src/proctools.h src/SegmentationProcessing.h \
  src/WatershedSegmenter.h src/ComputeFeatures.h src/FeatureCalculator.h \
  src/Writer.h
 
@@ -26,6 +26,8 @@ src/FileProcessing.h:
 src/Action.h:
 
 src/ImageProcessing.h:
+
+src/proctools.h:
 
 src/SegmentationProcessing.h:
 

@@ -746,7 +746,8 @@ void static haralickMatrix(int *data, int nobj,Mat &ref,int cgrades,vector<doubl
 	for( i = 0; i < ny; i++ )
 	  for(  j = 0; j < nx; j++ )
           {
-			refdata[IJ(i,j)]=((ref2.at<double>(i,j)-min)/(max-min));
+			  if(max>1) refdata[IJ(i,j)]=((ref2.at<double>(i,j)-min)/(max-min));
+			  else refdata[IJ(i,j)]= ref2.at<double>(i,j);
           }
 
 	/* get image data */
@@ -847,7 +848,8 @@ Pxmy =  new double[2*nc +10]; // +10 is to be safe with limits
 
 
 // GO through objects and calculate features
-for ( index = 0; index < nobj; index++ ) {
+for ( index = 0; index < nobj; index++ ) 
+{
   vector<double> f;
   for ( i = 0; i <nf; i++ ) f.push_back(0.0);
 
@@ -873,7 +875,9 @@ for ( i = 0; i < nc; i++ )
       px[i] += tmp;
     }
 // no sense to do anything if no non zero elements
-if ( nonZeros < 1 ) continue;
+	if ( nonZeros < 1 ) { 
+		ind_values.push_back(f);
+		continue; }
 // contrast              (CON)
 for ( n = 1; n < nc; n++ ) { // was from 0, but n^2 at n=0 is 0, so nonsense
   tmp = 0.0;
@@ -932,7 +936,6 @@ for ( HXY1=0, HXY2=0, entpx=0,   i = 0; i < nc; i++ ) {
 f[IMC1] = (entpx != 0) ? ( fabs(f[ENT] - HXY1) / entpx) : 0.0;
 tmp = 1.0 - exp( -2.0 * (HXY2 - f[ENT]));
 f[IMC2] = ( tmp >= 0 ) ? sqrt(tmp) : 0.0;
-
 
 ind_values.push_back(f);
 }

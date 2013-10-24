@@ -18,7 +18,14 @@ public:
 	 
 	ModuleSelector()
 	{
-#if GCC_VERSION > 40500
+#if __linux__
+	#if GCC_VERSION > 40500
+		fProc=nullptr;
+		imProc=nullptr;
+		segProc=nullptr;
+		cFeat = nullptr;
+	#endif
+#else
 		fProc=nullptr;
 		imProc=nullptr;
 		segProc=nullptr;
@@ -32,10 +39,14 @@ public:
 
 	
 	Action* imageProc(const char *FNAME,const char **nparams,const char **params,int countP){
-#if GCC_VERSION > 40500
+#if __linux__
+	#if GCC_VERSION > 40500
 		 if( imProc == nullptr )
-#else
-			 if(!imProc)
+	#else
+		 if(!imProc)
+	#endif
+#else	
+		 if( imProc == nullptr )
 #endif
 		 {
 			imProc = shared_ptr<ImageProcessing>(new ImageProcessing());
@@ -48,10 +59,14 @@ public:
 
 	Action* fileProc(const char *FNAME,const char **nparams,const char **params,int countP)
 	{
-#if GCC_VERSION > 40500
-		if(fProc==nullptr)
-#else
-			 if(!fProc)
+#if __linux__
+	#if GCC_VERSION > 40500
+		 if( fProc == nullptr )
+	#else
+		 if(!fProc)
+	#endif
+#else	
+		 if( fProc == nullptr )
 #endif
 		{
 			fProc = shared_ptr<FileProcessing>(new FileProcessing());
@@ -63,11 +78,14 @@ public:
 
 	Action* segmentationProc(const char *FNAME,const char **nparams,const char **params,int countP)
 	{
-
-#if GCC_VERSION > 40500
-		if(segProc==nullptr)
-#else
-			 if(!segProc)
+#if __linux__
+	#if GCC_VERSION > 40500
+		 if( segProc == nullptr )
+	#else
+		 if(!segProc)
+	#endif
+#else	
+		 if( segProc == nullptr )
 #endif
 		{
 			segProc = shared_ptr<SegmentationProcessing>(new SegmentationProcessing());
@@ -78,11 +96,14 @@ public:
 	}
 
 	Action* computeFeatures(const char *FNAME,const char **nparams,const char **params,int countP){
-
-#if GCC_VERSION > 40500
-		if(cFeat==nullptr)
-#else
-		if(!cFeat)
+#if __linux__
+	#if GCC_VERSION > 40500
+		 if( cFeat == nullptr )
+	#else
+		 if(!cFeat)
+	#endif
+#else	
+		 if( cFeat == nullptr )
 #endif
 		{
 			cFeat = shared_ptr<ComputeFeatures>(new ComputeFeatures());

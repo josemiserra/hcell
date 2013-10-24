@@ -263,6 +263,7 @@ void __normalize(const char* input, const char* output,int opt,double maxint=1.0
     Mat image2;
 	int type = image->type();
 	
+	tr.printMatrixInfo("Input before NORMALIZE",*image);
 
 	if(maxint>1) tr.message("WARNING: maxint must be between 0 and 1");
 	if(minint>1 || minint > maxint) tr.message("WARNING: maxint must be between 0 and 1 and less than maxint.");
@@ -270,22 +271,28 @@ void __normalize(const char* input, const char* output,int opt,double maxint=1.0
 
 	if(opt == NORM::MAX)
 	{
+
+		image->convertTo(image2, CV_32F);
 		if(type==CV_8U)
 			{
-			image->convertTo(image2,CV_32F,1.0/max,0);
-			image->convertTo(*image,CV_8UC1,255.0/(max),0);
-			
+			for( int y = 0; y < image->rows; y++ )
+			 for( int x = 0; x < image->cols; x++ )
+              {	
+				image2.at<float>(y,x)=image2.at<float>(y,x)/255.0;
+			 }
 			}
-			if(type==CV_16U)
-			{
-			image->convertTo(image2,CV_32F,1.0/max,0);
-			image->convertTo(*image,CV_16UC1, 65535.0/max,0);
-			
-			}
-			else
-			{
-			image->convertTo(image2,CV_32F,1.0/max,0);
-			}
+		if(type==CV_16U)
+		{
+		for( int y = 0; y < image->rows; y++ )
+			 for( int x = 0; x < image->cols; x++ )
+              {	
+				image2.at<float>(y,x)=image2.at<float>(y,x)/65535.0;
+			  }
+		}
+		else
+		{
+		  image->convertTo(image2,CV_32F,1.0/max,0);
+		}
 	
 	}
 	if(opt == NORM::MAXMIN)
@@ -347,7 +354,8 @@ void __normalize(const char* input, const char* output,int opt,double maxint=1.0
 	  if(type==CV_16U) image2.convertTo(*image,type,65535,0);
 	  if(type==CV_32F) image2.copyTo(*image);
 	}
-
+	tr.message("#####################"); 
+	tr.printMatrixInfo("Input AFTER NORMALIZE",image2);
 	 pool->storeImage(image2,output);
 	 return;	 
 	 }

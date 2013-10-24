@@ -252,7 +252,7 @@ const string currentDateTime() {
     tstruct = *localtime(&now);
     // Visit http://www.cplusplus.com/reference/clibrary/ctime/strftime/
     // for more information about date/time format
-    strftime(buf, sizeof(buf), "%Y-%m-%d.%X", &tstruct);
+    strftime(buf, sizeof(buf), "%Y-%m-%d.%H_%M_%S", &tstruct);
 
     return buf;
 }
@@ -261,7 +261,6 @@ void checkObject(const char* obj, vloP obj1, Mat ref)
 {
 		cout << "Evaluating object:"<< obj << endl;
 		Mat test(ref.rows,ref.cols, CV_8UC1, Scalar(0));
-
 		bool consistency = true;
 		for(auto myIterator =obj1.begin();  myIterator != obj1.end(); myIterator++)
 		{
@@ -282,55 +281,6 @@ void checkObject(const char* obj, vloP obj1, Mat ref)
 		}
 		if(consistency) cout << "----     Good Object consistency!" << endl;
 		return;
-}
-
-
-
-void timestamp ( )
-
-//****************************************************************************80
-//
-//  Purpose:
-//
-//    TIMESTAMP prints the current YMDHMS date as a time stamp.
-//
-//  Example:
-//
-//    May 31 2001 09:45:54 AM
-//
-//  Licensing:
-//
-//    This code is distributed under the GNU LGPL license. 
-//
-//  Modified:
-//
-//    24 September 2003
-//
-//  Author:
-//
-//    John Burkardt
-//
-//  Parameters:
-//
-//    None
-//
-{
-# define TIME_SIZE 40
-
-  static char time_buffer[TIME_SIZE];
-  const struct tm *tm;
-  size_t len;
-  time_t now;
-
-  now = time ( NULL );
-  tm = localtime ( &now );
-
-  len = strftime ( time_buffer, TIME_SIZE, "%d %B %Y %I:%M:%S %p", tm );
-
-  cout << time_buffer << "\n";
-
-  return;
-# undef TIME_SIZE
 }
 
 

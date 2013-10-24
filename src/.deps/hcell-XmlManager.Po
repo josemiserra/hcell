@@ -2,7 +2,7 @@ src/hcell-XmlManager.o: src/XmlManager.cpp src/XmlManager.h src/tinyxml.h \
  src/tinystr.h src/Action.h src/MType.h src/MAllTypes.h src/utils.h \
  src/PModule.h src/PoolManager.h src/Slot.h src/ActionLoader.h \
  src/ModuleSelector.h src/FileProcessing.h src/ImageProcessing.h \
- src/SegmentationProcessing.h src/WatershedSegmenter.h \
+ src/proctools.h src/SegmentationProcessing.h src/WatershedSegmenter.h \
  src/ComputeFeatures.h src/FeatureCalculator.h src/Writer.h
 
 src/XmlManager.h:
@@ -32,6 +32,8 @@ src/ModuleSelector.h:
 src/FileProcessing.h:
 
 src/ImageProcessing.h:
+
+src/proctools.h:
 
 src/SegmentationProcessing.h:
 

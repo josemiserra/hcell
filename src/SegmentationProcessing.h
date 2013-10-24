@@ -648,7 +648,7 @@ int __merge(const char* load_objects_1,const char* load_objects_2, const char* o
 	if(operation==MERGE::FIRST_FOUND)  // In this case, when intersection is found, the object in the second part is removed.
 	{
 		bool intersect =false;
-
+		double newcount=0.0;
 		for(auto myIterator =lobj_2->begin();  myIterator != lobj_2->end(); myIterator++)
 		{
 			for(auto myIt2 = myIterator->begin(); myIt2!= myIterator->end();myIt2++)

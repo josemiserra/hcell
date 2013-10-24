@@ -7,6 +7,9 @@
 #include "MType.h"
 #include "MAllTypes.h"
 #include "utils.h"
+#include "proctools.h"
+#include <limits>
+
 
 #define BG 0.0
 #define FG 1.0
@@ -17,7 +20,7 @@ using namespace cv;
 using namespace std;
 
 enum FLAGS{ THRESHFLAGS=0, ADAPT_THRESHFLAGS=50, BRUSHFLAGS= 100, MORPHFLAGS=200, CONTOURFLAGS=300, 
-			CONTOURFLAGS_2=350, SCALAR_FLAGS = 450, MAT_FLAGS = 500 };
+			CONTOURFLAGS_2=350, SCALAR_FLAGS = 450, MAT_FLAGS = 500, MTS_FLAGS = 550 };
 
 enum SHAPE{ GAUSSIAN=25, DIAMOND=26 };
 
@@ -25,8 +28,9 @@ enum OPS{ LAPLACIAN, SOBEL, SCHARR, CANNY};
 
 enum SCALAR_OPS{ SUM, DIFF, DIV, MULT, POWER, INV};
 
-enum MAT_OPS{ MOR, MXOR, MAND, MSUM, MDIFF, MDIV, MMULT};
+enum MAT_OPS{ MOR, MXOR, MAND, MSUM, MDIFF, MDIV, MMULT, MMULT_P};
 
+enum MTS_OPS{ MTSSUM, MTSMEAN, MTSSD, MTSTRACE};
 
 class ImageProcessing :
 	public PModule
@@ -36,6 +40,7 @@ public:
 	 typedef  void(ImageProcessing::*Function)(vector<MType *>,unsigned int pid); // function pointer type
 	 static map<string, Function > tFunc;
 	 static map<string, int> eMap;
+	 static proctools tools;
 
 	ImageProcessing(){
 
@@ -59,6 +64,10 @@ public:
 		tFunc["FLOODFILL"]=&ImageProcessing::_floodfill;
 		tFunc["SCALAR OPERATION"]=&ImageProcessing::_scalarOp;
 		tFunc["MATRIX OPERATION"]=&ImageProcessing::_matOp;
+		tFunc["MATRIX TO SCALAR OPERATION"]=&ImageProcessing::_mtsOp;
+		tFunc["GBLOB"] = &ImageProcessing::_gblob;
+		// -----Add here your new function---
+
 
 		///---- FLAGS MAP----///
 		/**THRESHOLDING**/
@@ -100,20 +109,26 @@ public:
 		eMap["GAUSSIAN"]=ADAPTIVE_THRESH_GAUSSIAN_C+FLAGS::ADAPT_THRESHFLAGS;
 
 		/**OPERATORS**/
-				eMap["SUM"] = SCALAR_FLAGS + SUM;
-				eMap["DIFF"] = SCALAR_FLAGS + DIFF;
-				eMap["DIV"] = SCALAR_FLAGS + DIV;
-				eMap["MULT"] = SCALAR_FLAGS + MULT;
-				eMap["POWER"] = SCALAR_FLAGS + POWER;
-				eMap["INV"] = SCALAR_FLAGS + INV;
+		eMap["SUM"] = SCALAR_FLAGS + SUM;
+		eMap["DIFF"] = SCALAR_FLAGS + DIFF;
+		eMap["DIV"] = SCALAR_FLAGS + DIV;
+		eMap["MULT"] = SCALAR_FLAGS + MULT;
+		eMap["POWER"] = SCALAR_FLAGS + POWER;
+		eMap["INV"] = SCALAR_FLAGS + INV;
 
-			    eMap["MOR"] = MAT_FLAGS + MOR;
-				eMap["MXOR"] = MAT_FLAGS + MXOR;
-				eMap["MAND"] = MAT_FLAGS + MAND;
-				eMap["MSUM"] = MAT_FLAGS + MSUM;
-				eMap["MDIFF"] = MAT_FLAGS + MDIFF;
-				eMap["MDIV"] =  MAT_FLAGS + MDIV;
-				eMap["MMULT"] = MAT_FLAGS + MMULT;
+	    eMap["MOR"] = MAT_FLAGS + MOR;
+		eMap["MXOR"] = MAT_FLAGS + MXOR;
+		eMap["MAND"] = MAT_FLAGS + MAND;
+		eMap["MSUM"] = MAT_FLAGS + MSUM;
+		eMap["MDIFF"] = MAT_FLAGS + MDIFF;
+		eMap["MDIV"] =  MAT_FLAGS + MDIV;
+		eMap["MMULT"] = MAT_FLAGS + MMULT;
+		eMap["MMULT_P"] = MAT_FLAGS + MMULT_P;
+		
+		eMap["MTSSUM"] = MTS_FLAGS + MTSSUM;
+		eMap["MTSMEAN"] = MTS_FLAGS + MTSMEAN;
+		eMap["MTSSD"] = MTS_FLAGS + MTSSD;
+		eMap["MTSTRACE"] = MTS_FLAGS + MTSTRACE;
 
 	};
 	~ImageProcessing(void){};
@@ -199,9 +214,13 @@ int __threshold(const char* input,const char* output, double threshold_value, in
 	{
 		// Normalize between 0 and 1
 		double minVal, maxVal;
-		minMaxLoc(image, &minVal, &maxVal); 	
-		image.convertTo(image,CV_32FC1);	
-		image= (image/maxVal);
+		minMaxLoc(image, &minVal, &maxVal); 
+	  if(maxVal>1.0)
+	  {	
+		image.convertTo(image,CV_32FC1,1/maxVal,0.0);	
+	  }
+	  else
+		  if(image.type()!=CV_32FC1) image.convertTo(image,CV_32FC1);
 	}
 	else
 	{
@@ -306,7 +325,7 @@ int __adaptativethreshold(const char* input,const char* output,int &adaptativeMe
 	// Now use different methods.
 	// OPENCV default method is only 8 bits, which is less precisse but faster
 
-
+	 tr.printMatrixInfo("Initial image info:",*img);
 	 tr.printMatrixInfo("Thresholded image info:",image);
 
 	if(threshold_type==THRESH_16)
@@ -315,10 +334,11 @@ int __adaptativethreshold(const char* input,const char* output,int &adaptativeMe
 		switch(image.type())
 		{
 		case(CV_32F): 
-					thresh<float>(image,thresholded,blockSize,blockSize,cval);
+					image.convertTo(image,CV_64FC1); 
+			        thresh<double>(image,thresholded,blockSize,blockSize,cval);
 					break;
 		case(CV_16U):
-					image.convertTo(image,CV_32FC1,65535.0,0); 
+					image.convertTo(image,CV_32FC1,65535.0,0.0); 
 					thresh<float>(image,thresholded,blockSize,blockSize,cval);
 					break;
 		default:
@@ -364,25 +384,25 @@ int __adaptativethreshold(const char* input,const char* output,int &adaptativeMe
                 /* first position in a row -- collect new sum */
                     for ( u = xi - dx; u <= xi + dx; u++ )
                         for ( v = yi - dy; v <= yi + dy; v++ )
-							   sum += x.at<mydata>(u,v);
+							   sum += x.at<mydata>(v,u);
 						        // sum += *(src+(u + v * nx));
                 }
                 else {
                 /* frame moved in the row, modify sum */
                     for ( v = yi - dy; v <= yi + dy; v++ )
 							 //  sum += src [xi + dx + v * nx] - src [ xi - dx - 1 + v * nx];
-							 sum += x.at<mydata>(xi+dx,v) - x.at<mydata>(xi-dx-1,v);
+							 sum += x.at<mydata>(v,xi+dx) - x.at<mydata>(v,xi-dx-1);
                 }
                
 				/* calculate threshold and update tgt data */
-                mean = sum / nFramePix + offset;
+                mean = (sum / (1.0*nFramePix) )+ offset;
                 sx = xi;
                 ex = xi;
                 sy = yi;
                 ey = yi;
                 if ( xi == dx ) {
                     /* left */
-                    sx = 0;
+                    sx = 0.0;
                     ex = dx;
                 }
                 else
@@ -393,7 +413,7 @@ int __adaptativethreshold(const char* input,const char* output,int &adaptativeMe
                 }
                 if ( yi == dy ) {
                     /* top */
-                    sy = 0;
+                    sy = 0.0;
                     ey = dy;
                 }
                 else
@@ -405,10 +425,10 @@ int __adaptativethreshold(const char* input,const char* output,int &adaptativeMe
                 if ( ex - sx > 0 || ey - sy > 0 ) {
                     for ( u = sx; u <= ex; u++ )
                         for ( v = sy; v <= ey; v++ )
-						     thresholded.at<mydata>(u,v) =  ( x.at<mydata>(u,v)< mean ) ? BG : FG;
+						     thresholded.at<mydata>(v,u) =  ( x.at<mydata>(v,u)< mean ) ? BG : FG;
                 }
                 else /* thresh current pixel only */
-				   thresholded.at<mydata>(xi,yi) =  ( x.at<mydata>(xi,yi)< mean ) ? BG : FG;
+				   thresholded.at<mydata>(yi,xi) =  ( x.at<mydata>(yi,xi)< mean ) ? BG : FG;
             }
         }
     
@@ -556,6 +576,7 @@ int __morphOp(const char* input,const char* output, const char* strc_element,int
 
 	Mat op;
 	tr.message("Using kernel:");
+	tr.printMatrixInfo("Kernel",*element);
 	tr.printMatrix(*element);
 	cv::morphologyEx( *src, op, operation, *element,Point(-1,-1),iter);
 
@@ -682,6 +703,8 @@ int __fillHull(const char* input, const char* output, const char* wName, bool &d
 		 drawContours( drawing, contours, i, CV_RGB( 255, 255, 255 ), CV_FILLED, 8, hierarchy, 0, Point() );
 		}
 	   
+		cvtColor(drawing,drawing, CV_RGB2GRAY);
+		drawing.convertTo(drawing,CV_8UC1,255,0);
 		pool->storeImage(drawing,output);
 	
 		return 0;
@@ -739,8 +762,10 @@ int __makeBrush(int shape,int size_x,int size_y,const char* brushName,float sigm
 	
 	switch(shape){
 		case(GAUSSIAN):{
-			kernel=getStructuringElement(MORPH_RECT, ksize,Point(-1,-1));
-			kernelToGaussian(kernel,sigma);
+			  kernel=getStructuringElement(MORPH_RECT, ksize,Point(-1,-1));
+			  kernelToGaussian(kernel,sigma);
+		//	kernel=getGaussianKernel(size_x,sigma, CV_64F);		
+			tr.printMatrixInfo("Gaussian Kernel:",kernel);
 			break;
 		}
 		case(DIAMOND):{
@@ -1207,13 +1232,9 @@ void _filter2D(std::vector<MType *> parValues, unsigned int pid)
 
 	__filter2D(input.c_str(),output.c_str(),kernelName);
 
-	  if(a0){
-		  Mat *timg = pool->getImage(output.c_str());
-		  double minVal, maxVal;
-		  minMaxLoc(*timg, &minVal, &maxVal); 
-		  Mat st;
-		  (*timg).convertTo(st,CV_8UC1,255.0/(maxVal - minVal), -minVal * 255.0/(maxVal - minVal));
-		  this->display(st,wName);
+	  if(a0)
+	  {
+		  this->displayTo8C1(output.c_str(),wName);
 	  }
 
 }
@@ -1226,10 +1247,19 @@ int __filter2D(const char* input, const char* output, const char *kernelName)
 	src = pool->getImage(input);
 	krn = pool->getImage(kernelName);
 	Mat dst;
-	
+	Mat krn2;
 	// tr.printMatrix(*krn);
 	/// Apply filter
-    filter2D(*src, dst, -1 , *krn);
+	// tr.printMatrixInfo("function",*src);  
+
+	 Point anchor(krn->cols - krn->cols/2 - 1, krn->rows - krn->rows/2 - 1);
+     int borderMode = BORDER_CONSTANT;
+	 flip(*krn,krn2,0);
+	 filter2D(*src, dst, -1, krn2, anchor, 0, borderMode);
+
+	// filter2D(*src, dst, -1 , *krn,Point();
+	 tr.printMatrixInfo("Kernel",krn2);
+	 tr.printMatrixInfo("function",dst);
 	pool->storeImage(dst,output);
 
 	return 0;
@@ -1354,20 +1384,34 @@ void kernelToGaussian(Mat &ker,float sigma=0.3){
 		Mat tker;
 		transpose(ker,tker);
 		float sum = 0;
+        Mat temp1,temp2,kertemp;
+		cv::pow(ker,2,ker);
+		cv::pow(tker,2,tker);
+
 		for(int j=0;j<size;j++)
 			for(int i=0;i<size;i++)
 			{
-				float elem=ker.at<float>(j,i);
+				float elem=   ker.at<float>(j,i);
 				float telem = tker.at<float>(j,i);
-				temp_val= exp(-((elem*elem +telem*telem)/(2*sigma*sigma)));
-				if(temp_val<=0) temp_val=0.0000000001; 
+				temp_val= exp(-((elem+telem)/(2*sigma*sigma)));
+				if(temp_val<=0) temp_val=0.0000000000000000001; 
 				ker.at<float>(j,i)=temp_val;
 				sum+=ker.at<float>(j,i);
-
 			} 
 	  ker /= sum; 
-//	  tr.printMatrix(ker);
-
+			 
+		/*	 tr.printMatrixInfo("Kernel",ker);
+			 tr.printMatrix(ker);  
+			*/
+	/*	Mat temp1,temp2,kertemp;
+		temp1 = -(kertemp+tker);
+		temp1 /= (2*sigma*sigma);
+		exp(temp1,temp2);
+		Scalar s = cv::sum(temp2);
+		kertemp = temp2/s[0]; 
+		ker = abs(kertemp);
+		ker.convertTo(ker,CV_32FC1); */
+	 // 
 }
 void kernelToDiamond(Mat &ker){
 	ut::Trace tr = ut::Trace("Diamond brush",__FILE__);
@@ -1376,9 +1420,9 @@ void kernelToDiamond(Mat &ker){
 		float temp_val=0.0;
 		for(int j=0;j<size;j++)
 			 for(int i=0;i<size;i++)
-			{
+			 {
 				 ker.at<float>(i,j)  = - floor(static_cast<float>((size-1)/2)+0.5)+i;
-			} 
+			 } 
 	    float mz = size/2.0;
 		Mat tker;
 		ker.copyTo(tker);
@@ -1394,29 +1438,38 @@ void kernelToDiamond(Mat &ker){
 
 }
 
-
 /*****OPERATORS************************************************/
 /****************************************************************************
- * SCALAR
+ * SCALAR 
  * ----------------------------
- *
+ *  
  *
  ***************************************************************************/
 
 void _scalarOp(std::vector<MType *> parValues, unsigned int pid){
 
 	  bool a0 =  (dynamic_cast<MBoolType*>(parValues[0]))->getValue(); // showImage (ASHOW)
-
-	  double factor	= (dynamic_cast<MDoubleType*>(parValues[1]))->getValue(); // brushName
+      
+	  string sfactor = (dynamic_cast<MStringType*>(parValues[1]))->getValue(); 
       string input	= (dynamic_cast<MStringType*>(parValues[2]))->getValue(); // input image
-	  int iter = (dynamic_cast<MIntType*>(parValues[3]))->getValue();
+	  int iter = (dynamic_cast<MIntType*>(parValues[3]))->getValue(); 
 	  string soperation = (dynamic_cast<MStringType*>(parValues[4]))->getValue(); // operation type
 	  string output	= (dynamic_cast<MStringType*>(parValues[5]))->getValue();  // output name
 	  const char* wName	= (dynamic_cast<MStringType*>(parValues[6]))->getValue(); // windows name
+	  string _factor;
+	  this->combnames(sfactor,pid,_factor);
+	  double factor=pool->getFactor(_factor.c_str(),sfactor.c_str());
+	 
+	  
 
-	  this->combnames(input,pid,input);
-	  this->combnames(output,pid,output);
-
+	  Mat *src = pool->getImage(input.c_str());
+	  // Kernels can have Scalar Operations, but kernels are static structures
+	  // thread independent...
+	  if(src==0)
+	  {
+		  this->combnames(input,pid,input);  
+		  this->combnames(output,pid,output);
+	  }
      int operation = eMap[soperation];
 	 this->__scalarOp(input.c_str(),output.c_str(),factor,operation,iter);
 
@@ -1431,21 +1484,23 @@ void _scalarOp(std::vector<MType *> parValues, unsigned int pid){
 */
 
 int __scalarOp(const char* input,const char* output,double factor, int operation, int iter){
-	 ut::Trace tr = ut::Trace("Scalar op",__FILE__);
+	 
+	ut::Trace tr = ut::Trace("Scalar op",__FILE__);
+	
 
 	Mat *src;
 	operation = operation-FLAGS::SCALAR_FLAGS;
 	src = pool->getImage(input);
-
+	
 	Mat op;
 	src->copyTo(op);
-
+	
 	int count=0;
 	while(count<iter){
-
+		
 		switch(operation)
 		{
-			case(SUM):
+			case(SUM): 
 						op += factor;
 						break;
 			case(DIFF):
@@ -1466,7 +1521,7 @@ int __scalarOp(const char* input,const char* output,double factor, int operation
 						double max;
 						minMaxIdx(op, &min, &max);
 						if(src->type()==CV_8U) op.convertTo(op,CV_8UC1,255.0/(max - min), -min * 255.0/(max - min));
-						if(src->type()==CV_16U) op.convertTo(op,CV_16UC1,65535.0/(max - min), -min * 65535.0/(max - min));
+						if(src->type()==CV_16U) op.convertTo(op,CV_16UC1,65535.0/(max - min), -min * 65535.0/(max - min));				
 						break;
 						}
 			 case(INV):{
@@ -1476,11 +1531,14 @@ int __scalarOp(const char* input,const char* output,double factor, int operation
 					   break;
 						}
 			default:
+					cout<<"ERROR: Non existent operation";
+					exit(-1959);
 					break;
 		}
 		count++;
 	}
-
+	tr.message("Factor used in scalar operation: ",factor);
+	tr.printMatrixInfo("Op Out",op);
 	pool->storeImage(op,output);
 	return 0;
 };
@@ -1488,17 +1546,17 @@ int __scalarOp(const char* input,const char* output,double factor, int operation
 /****************************************************************************
  * Matrix Operations
  * ----------------------------
- *
+ *  
  *
  ***************************************************************************/
 
 void _matOp(std::vector<MType *> parValues, unsigned int pid){
 
 	  bool a0 =  (dynamic_cast<MBoolType*>(parValues[0]))->getValue(); // showImage (ASHOW)
-
+      
 	  string input1	= (dynamic_cast<MStringType*>(parValues[1]))->getValue(); // brushName
       string input2	= (dynamic_cast<MStringType*>(parValues[2]))->getValue(); // input image
-	  int iter = (dynamic_cast<MIntType*>(parValues[3]))->getValue();
+	  int iter = (dynamic_cast<MIntType*>(parValues[3]))->getValue(); 
 	  string soperation = (dynamic_cast<MStringType*>(parValues[4]))->getValue(); // operation type
 	  string output	= (dynamic_cast<MStringType*>(parValues[5]))->getValue();  // output name
 	  const char* wName	= (dynamic_cast<MStringType*>(parValues[6]))->getValue(); // windows name
@@ -1510,7 +1568,8 @@ void _matOp(std::vector<MType *> parValues, unsigned int pid){
      int operation = eMap[soperation];
 	 this->__matOp(input1.c_str(),input2.c_str(),output.c_str(),operation,iter);
 
-	  if(a0){
+	  if(a0)
+	  {
 		 this->display(output,wName);
 	  }
 
@@ -1521,57 +1580,233 @@ void _matOp(std::vector<MType *> parValues, unsigned int pid){
 */
 
 int __matOp(const char* input1,const char* input2,const char* output, int operation, int iter){
-	 ut::Trace tr = ut::Trace("Scalar op",__FILE__);
+	 ut::Trace tr = ut::Trace("Matrix op",__FILE__);
 
-	Mat *src1, *src2;
+	Mat *src1, *src2; 
 	operation = operation-FLAGS::MAT_FLAGS;
 	src1 = pool->getImage(input1);
 	src2 = pool->getImage(input2);
 	Mat op1,op2;
 	src1->copyTo(op1);
 	src2->copyTo(op2);
-
+	Mat op3;
 	int count=0;
 	while(count<iter){
-
+		
 		switch(operation)
 		{
 			case(MOR):{
-						op1 |= op2;
+					   bitwise_or(op1,op2,op3);
 					   break;
 						}
 			case(MAND):{
-						op1 &= op2;
+						op3 = op1 & op2;
 					   break;
 						}
 			case(MXOR):{
-						bitwise_xor(op1,op2,op1);
+						bitwise_xor(op1,op2,op3);
 					   break;
-						}
-		    case(MSUM):
-						op1 += op2;
+						}	
+		    case(MSUM): 
+						op3 = op1 + op2;
 						break;
 			case(MDIFF):
-						absdiff(op1,op2,op1);
+						absdiff(op1,op2,op3);
 					   break;
-			case(MDIV):
-						op1 /= op2;
+			case(MDIV):  // Performs per-element division of two arrays.
+						op1.convertTo(op1,CV_32F);
+					    op2.convertTo(op2,CV_32F);
+						divide(op1,op2,op3);
 						break;
 			case(MMULT):
-					   op1 *=  op2;
-					   break;
-
+						// Calculates the per-element product of two arrays.
+					   op1.convertTo(op1,CV_32F);
+					   op2.convertTo(op2,CV_32F);
+					   multiply(op1,op2,op3);
+					   break;	
+			case(MMULT_P):
+						// Calculates the per-element product of two arrays.
+					   op1.convertTo(op1,CV_32F);
+					   op2.convertTo(op2,CV_32F);
+					   op3 = op1*op2;
+					   break;	
 			default:
+					cout<<"ERROR: Non existent operation";
+					exit(-1958);
 					break;
 		}
 		count++;
 	}
-
-	pool->storeImage(op1,output);
+	
+	pool->storeImage(op3,output);
 	return 0;
 };
 
 
+/****************************************************************************
+ * Matrix to Scalar Operations
+ * ----------------------------
+ *  
+ *
+ ***************************************************************************/
+
+void _mtsOp(std::vector<MType *> parValues, unsigned int pid){
+
+    
+	  string input = (dynamic_cast<MStringType*>(parValues[0]))->getValue(); // brushName
+	  string soperation = (dynamic_cast<MStringType*>(parValues[1]))->getValue(); // operation type
+	  string foutput	= (dynamic_cast<MStringType*>(parValues[2]))->getValue();  // output name
+	  
+	  
+	  Mat *src = pool->getImage(input.c_str());
+	  // Kernels can have Scalar Operations, but kernels are static structures
+	  // thread independent...
+	  if(src==0)
+	  {
+		  this->combnames(input,pid,input);  
+	  }
+	  
+	  this->combnames(foutput,pid,foutput);
+	  int operation = eMap[soperation];
+	  this->__mtsOp(input.c_str(),foutput.c_str(),operation);
+};
+
+/*
+
+*/
+
+int __mtsOp(const char* input,const char* output, int operation){
+	 ut::Trace tr = ut::Trace("Matrix to Scalar op",__FILE__);
+
+	Mat *src1; 
+	double factor;
+	operation = operation-FLAGS::MTS_FLAGS;
+	src1 = pool->getImage(input);
+	Mat op1;
+	src1->copyTo(op1);
+	Scalar s;
+	int count=0;
+		switch(operation)
+		{
+			case(MTSSUM):{
+					   s = sum(op1);
+					   break;
+						}
+			case(MTSMEAN):{
+						s = mean(op1);
+					   break;
+						}
+			case(MTSTRACE):{
+						s= cv::trace(op1);
+					   break;
+						}	
+		    case(MTSSD): 
+						//to implement
+						break;
+			default:
+					cout<<"ERROR: Non existent operation";
+					exit(-1957);
+					break;
+		}
+		factor = s[0];
+		tr.message("Factor: ",factor);
+		pool->storeFactor(factor,output);
+		return 0;
+};
+/*
+
+GBLOB granulometry transform.
+
+*/
+void _gblob(std::vector<MType *> parValues, unsigned int pid)
+{
+	double alpha = (dynamic_cast<MDoubleType*>(parValues[0]))->getValue(); 
+	bool ashow   = (dynamic_cast<MBoolType*>(parValues[1]))->getValue(); 
+	double beta  = (dynamic_cast<MDoubleType*>(parValues[2]))->getValue();
+    string input	= (dynamic_cast<MStringType*>(parValues[3]))->getValue(); 
+	string output	= (dynamic_cast<MStringType*>(parValues[4]))->getValue();	
+	int sequence = (dynamic_cast<MIntType*>(parValues[5]))->getValue(); 
+    int size = (dynamic_cast<MIntType*>(parValues[6]))->getValue();
+	const char* wName = (dynamic_cast<MStringType*>(parValues[7]))->getValue();
+
+	this->combnames(output,pid,output);
+	this->combnames(input,pid,input);
+
+	  __gblob(input.c_str(),output.c_str(), size, sequence, alpha, beta);
+
+	  if(ashow)
+	  {
+		 this->display(output,wName);
+	  }
+
+
+}
+
+void __gblob(const char* input,const char* output, int size,int sequence, double alpha, double beta)
+{
+	 ut::Trace tr = ut::Trace("GBLOB",__FILE__);
+	
+	Mat *src; 
+	src = pool->getImage(input);
+     
+
+	// sequence from -15 to 15, 49 times
+	vector<double> xx;
+
+	double by = (2.0*sequence)/((float)size-1.0);
+	float init = (float) -sequence;
+	while(init<=sequence)
+	{
+	  xx.push_back(init); 
+	  init+=by;
+	}
+	// Create our matrix
+	 Mat kernel = Mat::zeros( size, size, CV_64F );
+	// and initialize it
+	 MatIterator_<double> it;
+	 vector<double>::iterator itxx;
+	 
+
+	double aux;
+    for( size_t i = 0; i < size; i++ )
+	{
+		 aux = xx[i];
+         for( size_t j = 0; j < size; j++ )
+		 {
+			 kernel.at<double>(i,j)=aux;
+         }
+    }
+	
+	Mat tker;
+	transpose(kernel,tker);
+	cv::pow(kernel,2,kernel);
+	cv::pow(tker,2,tker);
+	cv::add(kernel,tker,kernel);
+	cv::sqrt(kernel,kernel);
+
+    double x;
+	double sum=0.0;
+
+    for( size_t i = 0; i < size; i++ )
+	{
+         for( size_t j = 0; j < size; j++ )
+		 {
+			 x = kernel.at<double>(i,j);
+			 kernel.at<double>(i,j)=tools.normal_pdf(x,0,alpha)-0.65*tools.normal_pdf(x,0,beta);
+			 sum+= kernel.at<double>(i,j);
+         }
+    }
+	kernel /=sum;
+	Point anchor(kernel.cols - kernel.cols/2 - 1, kernel.rows - kernel.rows/2 - 1);
+    int borderMode = BORDER_CONSTANT;
+	flip(kernel,kernel,0);
+	Mat final_image;
+	filter2D(*src, final_image, -1,kernel, anchor, 0, borderMode);
+	final_image/=2;
+
+	pool->storeImage(final_image,output);
+	return;
+}
 
 };
 
