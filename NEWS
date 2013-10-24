@@ -9,4 +9,9 @@ VERSION 0.5.2
 	- Windows version and Linux merged version except for files Hcell and Pipeline (.h.cpp)
 	- Improved algorithm for merging objects MERGE
         - APPEND_NAME for features and write file now works!
-	
+VERSION 0.5.21
+	- Removed count 1 from empty images as a feature.
+	- Removed Nan due to overflow when variance is done in feature calculation.
+	- Haralick features now adds objects with 0 values.
+	- Four  more examples added: 21,22, 23 and 24.
+
