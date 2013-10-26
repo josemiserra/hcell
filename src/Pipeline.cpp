@@ -328,6 +328,8 @@ void Pipeline::preparePipeline(void){
 						 {
 							
 							npipes.insert(std::pair<string,FeaturesPipe*>(n_name,fhar));
+							n_name.clear();
+							n_name.append("HAR_");
 						 }
 						 else
 							 npipes.insert(std::pair<string,FeaturesPipe*>(fname,fhar));
