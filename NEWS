@@ -1,3 +1,13 @@
+VERSION 0.7.0
+	- Several bugs corrected: Sobel filters, Watershed segmenter, Adaptive threshold.
+        - New functions added: Hough transform, Convert
+	- New Normalize options : Auto and CLAHE
+        - Interpreter and Syntax Tree added. 
+	- Emulation of pipeline for error checking.
+	- Simplified examples. 
+	- Manual added. 
+VERSION 0.6.0
+	- Checker for XML syntaxis.
 VERSION 0.5.1 
 	- Scalar and Matrix operators added
 	- New normalization function with max and min parameters.

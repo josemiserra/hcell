@@ -13,7 +13,7 @@
 # Automake init
 # =============
 
-AC_INIT([hcell],[0.5.21],[serrajosemi@gmail.com],
+AC_INIT([hcell],[0.7.0],[serrajosemi@gmail.com],
 [hcell],[http:://hcellapp.blogspot.com/])
 AC_PREREQ([2.68])
 AC_LANG([C++])

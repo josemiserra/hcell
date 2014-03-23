@@ -77,16 +77,22 @@ class Slot
 
 		inline  void setValue(IMAGE &image) 
 		{  
+			IMAGE *old_image;
+			old_image = _image;
+			_image = new IMAGE(image);
 	#if __linux__
 		#if GCC_VERSION > 40600		
-	    	if(_image!=nullptr) delete _image;
+	    	if(old_image!=nullptr) delete old_image;
 		#else
-		    if(!_image) delete _image;
+		    if(!old_image) delete old_image;
 		#endif
 	#else
-			if(_image!=nullptr) delete _image;
+			if(old_image!=nullptr && &image!=old_image){ delete old_image; }
     #endif
-		_image = new IMAGE(image);
+		
+		
+		
+		
 		}
 };
 

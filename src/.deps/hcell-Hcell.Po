@@ -1,14 +1,13 @@
-src/hcell-Hcell.o: src/Hcell.cpp src/Hcell.h src/utils.h src/Pipeline.h \
- src/Action.h src/MType.h src/MAllTypes.h src/PModule.h src/PoolManager.h \
- src/Slot.h src/PipelineGraph.h src/XmlManager.h src/tinyxml.h \
- src/tinystr.h src/ActionLoader.h src/ModuleSelector.h \
- src/FileProcessing.h src/ImageProcessing.h src/proctools.h \
- src/SegmentationProcessing.h src/WatershedSegmenter.h \
- src/ComputeFeatures.h src/FeatureCalculator.h src/Writer.h
+src/hcell-Hcell.o: src/Hcell.cpp src/Hcell.h src/Pipeline.h src/Action.h \
+ src/MType.h src/STree.h src/PoolManager.h src/Pool.h src/utils.h \
+ src/Slot.h src/proctools.h src/Interpreter.h src/PModule.h \
+ src/XmlManager.h src/tinyxml.h src/tinystr.h src/ActionLoader.h \
+ src/ModuleSelector.h src/FileProcessing.h src/ImageProcessing.h \
+ src/BinaryProcessor.h src/SegmentationProcessing.h \
+ src/WatershedSegmenter.h src/ComputeFeatures.h src/FeatureCalculator.h \
+ src/Writer.h src/Checker.h src/FlowMap.h
 
 src/Hcell.h:
-
-src/utils.h:
 
 src/Pipeline.h:
 
@@ -16,15 +15,21 @@ src/Action.h:
 
 src/MType.h:
 
-src/MAllTypes.h:
-
-src/PModule.h:
+src/STree.h:
 
 src/PoolManager.h:
 
+src/Pool.h:
+
+src/utils.h:
+
 src/Slot.h:
 
-src/PipelineGraph.h:
+src/proctools.h:
+
+src/Interpreter.h:
+
+src/PModule.h:
 
 src/XmlManager.h:
 
@@ -40,7 +45,7 @@ src/FileProcessing.h:
 
 src/ImageProcessing.h:
 
-src/proctools.h:
+src/BinaryProcessor.h:
 
 src/SegmentationProcessing.h:
 
@@ -51,3 +56,7 @@ src/ComputeFeatures.h:
 src/FeatureCalculator.h:
 
 src/Writer.h:
+
+src/Checker.h:
+
+src/FlowMap.h:

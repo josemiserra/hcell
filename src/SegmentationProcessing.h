@@ -1,7 +1,8 @@
 #ifndef _SEGMENTATION_PROCESSING_
 #define _SEGMENTATION_PROCESSING_
 
-
+#pragma warning( disable : 4482 )
+#pragma warning( disable : 4244 )
 
 #include <math.h>
 #include <queue>
@@ -11,9 +12,10 @@
 #include "PModule.h"
 #include <opencv2/opencv.hpp>
 #include "MType.h"
-#include "MAllTypes.h"
 #include "WatershedSegmenter.h"
+#include "ImageProcessing.h"
 #include "utils.h"
+#include "proctools.h"
 
 
 using namespace cv;
@@ -22,7 +24,8 @@ using namespace std;
 
 enum SFLAGS
 {
-	MERGE_FLAGS 
+	MERGE_FLAGS,
+	WATERSHED_FLAGS = 50
 }; 
 enum MERGE
 {
@@ -51,11 +54,19 @@ public:
 		tFunc["SPLIT BY OTSU"]=&SegmentationProcessing::_splitbyOtsu;
 		tFunc["SPLIT BY FRAGMENTATION"]=&SegmentationProcessing::_splitbyFragmentation;
 		tFunc["MERGE OBJECTS"]=&SegmentationProcessing::_merge;
-		
+		tFunc["HOUGH TRANSFORM"]=&SegmentationProcessing::_hough;
+		tFunc["RADIAL SEGMENTATION"]=&SegmentationProcessing::_radial;
+
+
 		eMap["FAST"]=MERGE::FAST+SFLAGS::MERGE_FLAGS ;
 		eMap["FUSION"]=MERGE::FUSION+SFLAGS::MERGE_FLAGS ;
 		eMap["FIRST_FOUND"]=MERGE::FIRST_FOUND+SFLAGS::MERGE_FLAGS;
+		
+		eMap["INTENSITY"] = WATERSHED_FLAGS;
+		eMap["DISTANCE"] = WATERSHED_FLAGS;
 
+		eMap["NO_BACKGROUND"] = WATERSHED_FLAGS;
+		
 	};
 	~SegmentationProcessing(void){};
 
@@ -82,32 +93,26 @@ public:
 
 void _watershed(std::vector<MType *> parValues, unsigned int pid)
 {
-
 	
 	 bool ashow =  (dynamic_cast<MBoolType*>(parValues[0]))->getValue(); // showImage (ASHOW)
-	 string bginput	= (dynamic_cast<MStringType*>(parValues[1]))->getValue();  // B
-	 string fginput	= (dynamic_cast<MStringType*>(parValues[2]))->getValue();  // G
-	 string input	= (dynamic_cast<MStringType*>(parValues[3]))->getValue();  // R
-	 string output	= (dynamic_cast<MStringType*>(parValues[4]))->getValue();	//output	(OUTPUT)
-	 const char* wName	= (dynamic_cast<MStringType*>(parValues[5]))->getValue(); // windowName
+	 string bginput	= (dynamic_cast<MIdentifierType*>(parValues[1]))->getValue(pid);  // B
+	 string fginput	= (dynamic_cast<MIdentifierType*>(parValues[2]))->getValue(pid);  // G
+	 string input	= (dynamic_cast<MIdentifierType*>(parValues[3]))->getValue(pid);  // R
+	 MIdentifierType* out = dynamic_cast<MIdentifierType*>(parValues[4]);
+	 string output	= out->getValue(pid);	//output	(OUTPUT)
+	 string save_objects = (dynamic_cast<MIdentifierType*>(parValues[5]))->getValue(pid); // 
+	 const char* wName	= (dynamic_cast<MStringType*>(parValues[6]))->getValue(); // windowName
 			
-	 this->combnames(bginput,pid,bginput);
-	 this->combnames(fginput,pid,fginput);
-	 		
-	 this->combnames(input,pid,input);
-	 this->combnames(output,pid,output);
-
-
-	 __watershed(input.c_str(),output.c_str(),fginput.c_str(),bginput.c_str());
+	 __watershed(input,output,save_objects,fginput,bginput);
 
 	 
   if(ashow){
-		 display(output,wName);
+		 this->display(output,wName);
 	  }
-	  
+     out->refresh(pid);
 }
 
-int __watershed(const char*input,const char* output,const char* fg_im,const char* bg_im){
+int __watershed(string input,string output,string save_objects,string fg_im,string bg_im){
 	
 	ut::Trace tr = ut::Trace("watershed",__FILE__);
 	
@@ -116,36 +121,68 @@ int __watershed(const char*input,const char* output,const char* fg_im,const char
 	Mat *bg = pool->getImage(bg_im);
 
     Mat f1, b1, im1;
-	image->copyTo(im1);
     
 	double minVal, maxVal;
-    minMaxLoc(im1, &minVal, &maxVal); 
-    im1.convertTo(im1,CV_8UC1,255.0/(maxVal - minVal), -minVal * 255.0/(maxVal - minVal));
+    minMaxLoc(*image, &minVal, &maxVal); 
+	// Conversion to 8 bit possibly needed
+    if(image->depth()!=CV_8U) image->convertTo(im1,CV_8UC1,255.0/(maxVal - minVal), -minVal * 255.0/(maxVal - minVal));
+	else image->copyTo(im1);
 	cvtColor(im1,im1,CV_GRAY2RGB);
 
-    // display(im1,"original image");
+   // display(im1,"original image");
+	 if(fg->depth()!=CV_8U) fg->convertTo(f1,CV_8U,255, 0);
+	 else fg->copyTo(f1);
 
-	(*fg).convertTo(f1,CV_8U,255, 0);
-	
-    minMaxLoc(*bg, &minVal, &maxVal); 
-    bg->convertTo(b1,CV_8UC1,128.0/(maxVal - minVal), -minVal * 128.0/(maxVal - minVal));
-
-    // (*bg).convertTo(b1,CV_8U,128.0,0);
+	minMaxLoc(*bg, &minVal, &maxVal); 
+	bg->convertTo(b1,CV_32F,1.0/(maxVal - minVal), -minVal * 1.0/(maxVal - minVal)); 
+    // Background is considered one more object...
+	b1 = 1-b1;
+	// tr.printMatrixInfo("bg",b1);
 	// display(b1,"bg1");
-	//  display(*bg,"bg");
+	// display(*bg,"bg");
+    Mat markers;
+	b1.copyTo(markers);	 
+	 // create markers image with connected components
+	 vloP in_objects;
+	 this->__label(f1,in_objects);
+	 // Now we need to stamp the objects to the image
+	float count = 2.0;
+	for(vloP::iterator it = in_objects.begin(); it!=in_objects.end(); ++it,++count)
+	{	       
+		        for (loP::iterator obj = it->begin(); obj!=it->end(); ++obj)
+				{
+				   markers.at<float>(*obj) = count;
+				} 			  
+   }
 
-	 cv::Mat markers(f1.size(),CV_16UC1,cv::Scalar(0));	 
-	 add(f1,b1,markers);
-//	 tr.printMatrixInfo("markers",markers);
-	// display(markers,"markers");
-	 
+	// tr.printMatrixInfo("markers",markers); display(markers,"markers");
 	 WatershedSegmenter segmenter;
-     segmenter.setMarkers(markers);
-//	tr.printMatrixInfo("im1",im1);
-    cv::Mat result = segmenter.process(im1);
+	
+    segmenter.process(im1,markers);
+	// remove background object
+	markers.convertTo(markers,CV_32FC1);
+	for( int i = 0; i < markers.rows; i++ )
+					for( int j = 0; j < markers.cols; j++ )
+						{	
+							if(markers.at<float>(i,j)==1.0) markers.at<float>(i,j)=0.0;
+							else
+							if(markers.at<float>(i,j)==-1.0) markers.at<float>(i,j)=0.0;
+							else 
+							if(markers.at<float>(i,j)>1.0)	markers.at<float>(i,j)=  markers.at<float>(i,j)-1.0;
+						}
+	
 
-	pool->storeImage(result,output);
+	tr.printMatrixInfo("markers",markers);
+	in_objects.clear();
+	proctools::convertImageToVlop<float>(markers,in_objects);
+	markers.convertTo(markers,CV_8U);
+	
+	threshold(markers,markers,1,255,0);
 
+//	tr.printMatrixInfo("res",result);
+//    display(result,"r");	
+	pool->storeImage(markers,output);
+	pool->storelObj(in_objects,save_objects.c_str());
 	return 0;
 }
 
@@ -159,22 +196,16 @@ int __watershed(const char*input,const char* output,const char* fg_im,const char
 void _propagate(std::vector<MType *> parValues, unsigned int pid)
 {
  
-	 string input	= (dynamic_cast<MStringType*>(parValues[0]))->getValue();  // initial image to segment
-
-	 double lambda	= (dynamic_cast<MDoubleType*>(parValues[1]))->getValue();  // lamda value
-	 string mask	= (dynamic_cast<MStringType*>(parValues[2]))->getValue();  // binary mask
-
-	 string output	= (dynamic_cast<MStringType*>(parValues[3]))->getValue();	//output	(objects)
-	 string seeds	= (dynamic_cast<MStringType*>(parValues[4]))->getValue();  // seeds
+	 string input	= (dynamic_cast<MIdentifierType*>(parValues[0]))->getValue(pid);  // initial image to segment
+	 double lambda	= (dynamic_cast<MDoubleType*>(parValues[1]))->getValue(pid);  // lamda value
+	 string mask	= (dynamic_cast<MIdentifierType*>(parValues[2]))->getValue(pid);  // binary mask
+	 MIdentifierType* out = dynamic_cast<MIdentifierType*>(parValues[3]);
+	 string output	= out->getValue(pid);	//output	(objects)
+	 string seeds	= (dynamic_cast<MIdentifierType*>(parValues[4]))->getValue(pid);  // seeds
 	
-	 this->combnames(input,pid,input);
-	 this->combnames(output,pid,output);
-	 this->combnames(mask,pid,mask);
-	 this->combnames(seeds,pid,seeds);
-
-
 	 __propagate(seeds.c_str(), input.c_str(), output.c_str(), mask.c_str(), lambda);
 
+	 out->refresh(pid);
 	 return;
 }
 
@@ -189,17 +220,16 @@ int __propagate(const char* seeds, const char* input,const char*output, const ch
 void _label(std::vector<MType *> parValues, unsigned int pid)
 {
 
-	 string input	= (dynamic_cast<MStringType*>(parValues[0]))->getValue();  // Image, binary or with seeds
-	 string output	= (dynamic_cast<MStringType*>(parValues[1]))->getValue();	// Name of vector of Objects
-	
-	 this->combnames(input,pid,input);
-	 this->combnames(output,pid,output);
+	 string input	= (dynamic_cast<MIdentifierType*>(parValues[0]))->getValue(pid);  // Image, binary or with seeds
+	 MIdentifierType* out = dynamic_cast<MIdentifierType*>(parValues[1]);
+	 string output	= out->getValue(pid);	// Name of vector of Objects
 
 	 __label(input.c_str(), output.c_str());
 
+	 out->refresh(pid);
 }
 int __label(const char* input, const char* output);
-
+int static __label(Mat &im,vloP &objects_out);
 
 /****************************************************************************
  *  SPLIT BY WATERSHED
@@ -211,19 +241,17 @@ int __label(const char* input, const char* output);
 void _splitbywatershed(std::vector<MType *> parValues, unsigned int pid)
 {
 
-	int ext	= (dynamic_cast<MIntType*>(parValues[0]))->getValue();	 
-	string input	= (dynamic_cast<MStringType*>(parValues[1]))->getValue();  // Image, binary
+	int ext	= (dynamic_cast<MIntType*>(parValues[0]))->getValue(pid);	 
+	string input	= (dynamic_cast<MIdentifierType*>(parValues[1]))->getValue(pid);  // Image, binary
 	const char* method = (dynamic_cast<MStringType*>(parValues[2]))->getValue();
-	string reference	= (dynamic_cast<MStringType*>(parValues[3]))->getValue();	// Reference in intensity values.
-	string output	= (dynamic_cast<MStringType*>(parValues[4]))->getValue();	// Save objects -  Name of vector of Objects
-	double tol = (dynamic_cast<MDoubleType*>(parValues[5]))->getValue();	
-	 
-	this->combnames(input,pid,input);
-	this->combnames(output,pid,output);
-	this->combnames(reference,pid,reference);
+	string reference	= (dynamic_cast<MIdentifierType*>(parValues[3]))->getValue(pid);	// Reference in intensity values.
+	MIdentifierType* out = dynamic_cast<MIdentifierType*>(parValues[4]);
+	string output	= out->getValue(pid);	// Save objects -  Name of vector of Objects
+	double tol = (dynamic_cast<MDoubleType*>(parValues[5]))->getValue(pid);	
 
 	  __splitbywatershed(input.c_str(),reference.c_str(), output.c_str(),ext,tol,method);
 
+	  out->refresh(pid);
 }
 
 /*****************************************************************************************************
@@ -302,16 +330,14 @@ void _splitbyOtsu(std::vector<MType *> parValues, unsigned int pid)
 {
 
 	
-	 string load_objects	= (dynamic_cast<MStringType*>(parValues[0]))->getValue();	// Name of vector of Objects
-	 string reference	= (dynamic_cast<MStringType*>(parValues[1]))->getValue();  // Image, binary or with seeds
-	 string save_objects	= (dynamic_cast<MStringType*>(parValues[2]))->getValue();	// Name of vector of Objects
-
-	 this->combnames(reference,pid,reference);
-	 this->combnames(load_objects,pid,load_objects);
-	 this->combnames(save_objects,pid,save_objects);
+	 string load_objects	= (dynamic_cast<MIdentifierType*>(parValues[0]))->getValue(pid);	// Name of vector of Objects
+	 string reference	= (dynamic_cast<MIdentifierType*>(parValues[1]))->getValue(pid);  // Image, binary or with seeds
+	 MIdentifierType* out = dynamic_cast<MIdentifierType*>(parValues[2]);
+	 string save_objects	= out->getValue(pid);	// Name of vector of Objects
 
 	 __splitbyOtsu(reference.c_str(),load_objects.c_str(),save_objects.c_str());
 
+	 out->refresh(pid);
 }
 int __splitbyOtsu(const char* reference, const char* load_objects, const char* save_objects);
 
@@ -340,20 +366,16 @@ int __splitbyOtsu(const char* reference, const char* load_objects, const char* s
 void _splitbyFragmentation(std::vector<MType *> parValues, unsigned int pid)
 {
 
-	
-	 string big_objects	= (dynamic_cast<MStringType*>(parValues[0]))->getValue();	// Name of vector of Objects
-	 double coefficient = (dynamic_cast<MDoubleType*>(parValues[1]))->getValue();
-	 string frag_objects	= (dynamic_cast<MStringType*>(parValues[2]))->getValue();	// Name of vector of Objects
-	 string reference = (dynamic_cast<MStringType*>(parValues[3]))->getValue();
-	 string save_objects	= (dynamic_cast<MStringType*>(parValues[4]))->getValue();	// Name of vector of Objects
-
-	 this->combnames(big_objects,pid,big_objects);
-	 this->combnames(frag_objects,pid,frag_objects);
-	 this->combnames(save_objects,pid,save_objects);
-	 this->combnames(reference,pid,reference);
+	 string big_objects	= (dynamic_cast<MIdentifierType*>(parValues[0]))->getValue(pid);	// Name of vector of Objects
+	 double coefficient = (dynamic_cast<MDoubleType*>(parValues[1]))->getValue(pid);
+	 string frag_objects	= (dynamic_cast<MIdentifierType*>(parValues[2]))->getValue(pid);	// Name of vector of Objects
+	 string reference = (dynamic_cast<MIdentifierType*>(parValues[3]))->getValue(pid);
+	  MIdentifierType* out = dynamic_cast<MIdentifierType*>(parValues[4]);
+	 string save_objects	= out->getValue(pid);	// Name of vector of Objects
 
 	 __splitbyFragmentation(reference.c_str(),big_objects.c_str(),frag_objects.c_str(),save_objects.c_str(),coefficient);
 
+	 out->refresh(pid);
 }
 /*
 Given two sets, one of big objects and other of the same objects fragmented.
@@ -493,26 +515,23 @@ void _merge(std::vector<MType *> parValues, unsigned int pid)
 {
 
 	
-	 string load_objects_1	= (dynamic_cast<MStringType*>(parValues[0]))->getValue();	// Name of vector of Objects
-	 string load_objects_2	= (dynamic_cast<MStringType*>(parValues[1]))->getValue();	// Name of vector of Objects
-	 string mask = (dynamic_cast<MStringType*>(parValues[2]))->getValue();
+	 string load_objects_1	= (dynamic_cast<MIdentifierType*>(parValues[0]))->getValue(pid);	// Name of vector of Objects
+	 string load_objects_2	= (dynamic_cast<MIdentifierType*>(parValues[1]))->getValue(pid);	// Name of vector of Objects
+	 string mask = (dynamic_cast<MIdentifierType*>(parValues[2]))->getValueAsString();
+	 if(mask.compare("NULL")!=0) mask = (dynamic_cast<MIdentifierType*>(parValues[2]))->getValue(pid);
 	 string soperation = (dynamic_cast<MStringType*>(parValues[3]))->getValue(); // operation type
-	 string output	= (dynamic_cast<MStringType*>(parValues[4]))->getValue();	// Name of vector of Objects
-	 string reference = (dynamic_cast<MStringType*>(parValues[5]))->getValue();
+	 MIdentifierType* out = dynamic_cast<MIdentifierType*>(parValues[4]);
+	 string output	= out->getValue(pid);	// Name of vector of Objects
+	 string reference = (dynamic_cast<MIdentifierType*>(parValues[5]))->getValue(pid);
 
 	int operation = eMap[soperation];
 
-	 this->combnames(mask,pid,mask);
-	 this->combnames(reference,pid,reference);
-	 this->combnames(load_objects_1	,pid,load_objects_1);
-	 this->combnames(load_objects_2,pid,load_objects_2);
-	 this->combnames(output,pid,output);
+	 __merge(load_objects_1.c_str(),load_objects_2.c_str(),output.c_str(),reference.c_str(),operation, mask);
 
-	 __merge(load_objects_1.c_str(),load_objects_2.c_str(),output.c_str(),reference.c_str(),operation, mask.c_str());
-
+	 out->refresh(pid);
 }
 
-int __merge(const char* load_objects_1,const char* load_objects_2, const char* output,const char *reference,int operation, const char *mask)
+int __merge(const char* load_objects_1,const char* load_objects_2, const char* output,const char *reference,int operation, string mask)
 {
 
 	ut::Trace tr = ut::Trace("Merge :",__FILE__); 	
@@ -520,18 +539,19 @@ int __merge(const char* load_objects_1,const char* load_objects_2, const char* o
 	vloP* lobj_1= pool->getlObj(load_objects_1);
 	vloP* lobj_2 = pool->getlObj(load_objects_2);
 	Mat *ref=pool->getImage(reference);
-	string _m(mask);
+
 	
 	tr.checkObject(load_objects_1,*lobj_1,*ref);
 	tr.checkObject(load_objects_2,*lobj_2,*ref);
-
 	Mat _mask(ref->rows,ref->cols, CV_8UC1, Scalar(0));
-	if(_m.substr(_m.size()-2).compare("NO")!=0)
+	if(mask.compare("NULL")!=0)
 	{
 		Mat *tmask = pool->getImage(mask);
 		tmask->copyTo(_mask);
+		if(_mask.depth()!=CV_8U) _mask.convertTo(_mask,CV_8UC1);
 		tr.printMatrixInfo("MASK:",_mask);
 	}
+	
 	vloP  lobj_3;
 	operation = operation-SFLAGS::MERGE_FLAGS;
 	// Merging two objects can be done in three different ways.
@@ -708,7 +728,125 @@ int __merge(const char* load_objects_1,const char* load_objects_2, const char* o
 		return 0;
 
 }
+void _radial(std::vector<MType *> parValues, unsigned int pid)
+{
+}
 
+void __radial(){};
+
+
+void _hough(std::vector<MType *> parValues, unsigned int pid)
+{
+	bool ashow    = (dynamic_cast<MBoolType*>(parValues[0]))->getValue(); 
+	string colour = (dynamic_cast<MStringType*>(parValues[1]))->getValue(); // colour	
+    string input  =(dynamic_cast<MIdentifierType*>(parValues[2]))->getValue(pid); 
+	string  lines  =(dynamic_cast<MIdentifierType*>(parValues[3]))->getValue(pid);
+	int maxgap  = (dynamic_cast<MDoubleType*>(parValues[4]))->getValue(pid);
+    int minlength = (dynamic_cast<MDoubleType*>(parValues[5]))->getValue(pid);
+    bool probabilistic    = (dynamic_cast<MBoolType*>(parValues[6]))->getValue(); 
+    int rho = (dynamic_cast<MDoubleType*>(parValues[7]))->getValue(pid);
+	int theta = (dynamic_cast<MDoubleType*>(parValues[8]))->getValue(pid);
+	int thresh_int = (dynamic_cast<MIntType*>(parValues[9]))->getValue(pid);
+	const char* wName = (dynamic_cast<MStringType*>(parValues[10]))->getValue();
+
+
+	if(probabilistic)
+	{
+		__houghprob(input,lines,rho,theta,thresh_int,minlength,maxgap);
+	}
+	else
+	{
+		__hough(input,lines,rho,theta,thresh_int);
+	}
+
+	  if(ashow)
+	  {
+		  Mat *img = pool->getImage(input);
+		  Mat dst;
+		  img->convertTo(dst,CV_8UC3);
+		  cvtColor(*img,dst,CV_GRAY2RGB);
+		  vloP *setoflines = pool->getlObj(lines.c_str());
+		  Scalar *color = utils::toColor(colour); 
+		  for(vloP::iterator it = setoflines->begin() ; it!=setoflines->end(); it++){
+			  Point pt1 = (*it)[0];
+			  Point pt2 = (*it)[1];
+			  line( dst, pt1, pt2, *color, 1, CV_AA);
+		  }
+		  this->display(dst,wName);
+		  delete color;
+	  }
+
+}
+
+void __hough(string input, string lines_obj, double _rho,double _theta,int threshold)
+{
+	ut::Trace tr = ut::Trace("HOUGH TRANSFORM",__FILE__);
+
+	Mat *inp = pool->getImage(input);
+	Mat imp;
+	if(inp->channels()>1)  cvtColor(*inp,imp,CV_RGB2GRAY);
+	else inp->copyTo(imp);
+	imp.convertTo(imp,CV_8U);
+
+	double radians = _theta*CV_PI/180;
+	vector<Vec2f> lines;
+	HoughLines(imp, lines,_rho, radians, threshold);
+
+	// Now we have the lines calculated. They are stored as objects with two points.
+	vloP tlines;
+
+	for( size_t i = 0; i < lines.size(); i++ )
+	{
+		float rho = lines[i][0], theta = lines[i][1];
+		Point pt1, pt2;
+	    double a = cos(theta), b = sin(theta);
+		double x0 = a*rho, y0 = b*rho;
+		pt1.x = cvRound(x0 + 1000*(-b));
+		pt1.y = cvRound(y0 + 1000*(a));
+		pt2.x = cvRound(x0 - 1000*(-b));
+		pt2.y = cvRound(y0 - 1000*(a));
+		loP cline;
+		cline.push_back(pt1);
+		cline.push_back(pt2);
+		tlines.push_back(cline);
+	}
+	pool->storelObj(tlines,lines_obj.c_str());
+
+};
+// minLineLength – Minimum line length. Line segments shorter than that are rejected.
+// maxLineGap – Maximum allowed gap between points on the same line to link them.
+void __houghprob(string input, string lines_obj, double _rho,double _theta,int threshold,double minLineLength,double maxLineGap)
+{
+  ut::Trace tr = ut::Trace("PROBABILISTIC HOUGH TRANSFORM",__FILE__);
+
+	Mat *inp = pool->getImage(input);
+	Mat imp;
+	if(inp->channels()>1)  cvtColor(*inp,imp,CV_RGB2GRAY);
+	else inp->copyTo(imp);
+	imp.convertTo(imp,CV_8UC1);
+
+	double radians = _theta*CV_PI/180;
+	vector<Vec4i> lines;
+	HoughLinesP(imp, lines,_rho, radians, threshold,minLineLength,maxLineGap);
+
+	// Now we have the lines calculated. They are stored as objects with two points.
+	vloP tlines;
+
+	for( size_t i = 0; i < lines.size(); i++ )
+	{
+		Point pt1, pt2;
+		pt1.x = lines[i][0];
+		pt1.y = lines[i][1];
+		pt2.x = lines[i][2];
+		pt2.y = lines[i][3];
+		loP cline;
+		cline.push_back(pt1);
+		cline.push_back(pt2);
+		tlines.push_back(cline);
+	}
+	pool->storelObj(tlines,lines_obj.c_str());
+
+}
 
 /****************************************************************************
  * Extra functions and definitions

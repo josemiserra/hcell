@@ -2,6 +2,7 @@
 #define _UTILS_
 
 #if __linux__
+	#include <X11/Xlib.h>
 	#define GCC_VERSION (__GNUC__ * 10000 \
                                + __GNUC_MINOR__ * 100 \
                                + __GNUC_PATCHLEVEL__)
@@ -38,6 +39,8 @@
 #include <opencv2/opencv.hpp>
 // #include <opencv/highgui.h>
 
+#define TOTAL_COLOR_NAMES 12
+
 using namespace cv;
 using namespace std;
 
@@ -45,24 +48,233 @@ typedef vector<Point> loP;
 typedef vector<loP> vloP;
 
 
+
 namespace ut{
 
 	class utils
 	{
+			
+		private:
+			static vector<Scalar> colorTab;
+			static int colorcounter;	
+			
+
 		public:
-		utils(void);
-		~utils(void);
+		static const string colourNames[TOTAL_COLOR_NAMES];
+		utils(void)
+			{
+		
+			
+			}
+		~utils(void){};
+	
+		static void initialise()
+		{
+			 utils::colorTab.reserve(1024);
+			  int i;
+	            for( i = 0; i < 1024; i++ )
+	            {
+	            int b = theRNG().uniform(0, 255);
+                int g = theRNG().uniform(0, 255);
+                int r = theRNG().uniform(0, 255);
+               
+				utils::colorTab.push_back(Scalar(b,g,r));
+				utils::colorcounter=0;
+				}
+	
+		}
+/*###########  HELPER CLASS with static methods ############### */
+/**********SEARCHING METHODS***********************************/
+
+		template <class T>
+		static bool  contains(const std::vector<T> &vec, const T &value)
+		{
+		return find(vec.begin(), vec.end(), value) != vec.end();
+		};
+
+		static bool abs_compare(int a, int b)
+		{
+		 return (std::abs(a) < std::abs(b));
+		}
+
+	/**********STRING MERGING WITH INTEGER***********************************/
+	
+   static inline void combnames(string str,unsigned int n,string &newname)
+	{
+	string _str1;
+#ifdef __linux__
+	#if GCC_VERSION > 40600
+		 _str1 = std::to_string(n);
+	#else
+		  _str1 = std::to_string(static_cast<long long>(n));
+	#endif
+#else
+	  _str1 = to_string(static_cast<long long>(n));
+#endif
+	 _str1.append(str);
+	 newname=_str1;
+	 return;
+	}
+/**********STRING UTILITIES***********************************/
+		 static void trim(string& str)
+		{
+		 string::size_type pos = str.find_last_not_of(' ');
+		 if(pos != string::npos) {
+				 str.erase(pos + 1);
+				 pos = str.find_first_not_of(' ');
+				 if(pos != string::npos) str.erase(0, pos);
+		}
+		 else str.erase(str.begin(), str.end());
+		}
+
+/**********DISPLAY MANAGEMENT***********************************/		
+// Obtain from the system the maximum horizontal resolution		
+		static int getMaxScreenWidth(){
+	
+	#ifdef WIN32
+		int fResult;
+		fResult = GetSystemMetrics(SM_CXSCREEN); 
+	    if(fResult==0)
+		{
+				cout<<"Monitor Resolution could not been obtained"<<endl;
+				return 640;  // Minimum resolution nowadays...
+		}
+		else
+		return fResult;	
+	#else
+		#if __linux__
+			Display* disp = XOpenDisplay(NULL);
+			Screen*  scrn = DefaultScreenOfDisplay(disp);
+			int width  = scrn->width;
+			return width;
+		#endif
+	#endif
+		}
+// Obtain from the system the maximum vertical resolution		
+	static int getMaxScreenHeight(){
+	
+	#ifdef WIN32
+		int fResult;
+		fResult = GetSystemMetrics(SM_CYSCREEN); 
+	    if(fResult==0)
+		{
+				cout<<"Monitor Resolution could not been obtained"<<endl;
+				return 480; // Minimum resolution nowadays
+		}
+		else
+		return fResult;	
+	#else
+		#if __linux__
+			Display* disp = XOpenDisplay(NULL);
+			Screen*  scrn = DefaultScreenOfDisplay(disp);
+			int height = scrn->height;
+			return height;
+		#endif
+	#endif
+		}
+
+/**********COLOUR MANAGEMENT***********************************/
+
+/****************************************************************************
+ * getRandomColor
+ * ----------------------------
+ *  
+ *
+ ***************************************************************************/
+	static Scalar getRandomColor(){ return utils::colorTab[++utils::colorcounter%256];  }
+
+	
+/********************************************************************
+*     string to Color
+* More info about colors:
+* http://www.javascripter.net/faq/rgbtohex.htm 
+*
+*
+***********************************************************************/
+
+	static Scalar* toColor(string color){
+
+		if(color[0]=='#'){
+			int red, green, blue;
+			red=hexToR(color);
+		    green=hexToG(color);
+			blue = hexToB(color);
+			return new Scalar(red,green,blue);
+		}
+		// if RGB(0,0,0) -> trim image	
+
+
+		if(color.substr(0,3).compare("RGB")==0){
+			const char * pch;
+			char tmp[3];
+			pch = color.c_str();
+			int i,j;
+			int c[3];
+			j=0;
+
+			while (*pch!=')')
+			{
+				i=0;
+				pch++;
+				tmp[0]='x';
+				tmp[1]='x';
+				tmp[2]='x';
+				while(isdigit(*pch)) { tmp[i++]=*pch; pch++;} 
+				if(i>0)
+					{
+					c[j]=atoi(tmp); 
+					j++; 
+					}
+				 }
+			return new Scalar(c[0],c[1],c[2]);
+			
+		}
+		
+     if(color.compare("GREY")==0) return new Scalar(128,128,128);
+	 if(color.compare("BROWN")==0) return new Scalar(205,135,65);
+	 if(color.compare("BLACK")==0) return new Scalar(0,0,0);
+	 switch(color[0]){
+			case('B'): return new Scalar(255,0,0); break;
+			case('G'): return new Scalar(0,255,0); break;
+			case('R'): return new Scalar(0,0,255); break;
+			case('Y'): return new Scalar(0,255,255); break; // Yellow
+			case('M'): return new Scalar(255,0,255); break; // Magenta
+			case('C'): return new Scalar(255,255,0); break; // Cyan	
+			case('P'): return new Scalar(139,0,139); break; // Purple
+			case('W'): return new Scalar(255,255,255); break; // White
+			default:   ;
+	 }
+	// if black
+		return new Scalar(0,0,0);
+
+	}
+
+	static string cutHex(string h) { return (h.at(0) =='#') ? h.substr(1,6) : h; }
+	static int hexToR(string h) { 
+							char * p;
+							long n = strtol( h.substr(1,2).c_str(), & p, 16 );
+							return n;};
+   	static int hexToG(string h) { 
+							char * p;
+							long n = strtol( h.substr(3,2).c_str(), & p, 16 );
+							return n;};
+   
+    static int hexToB(string h) { 
+							char * p;
+							long n = strtol( h.substr(5,2).c_str(), & p, 16 );
+							return n;
+							}
 
 	};
 
-
+/****************Tracing class VERBOSING*****************************************/
 	class Trace {
 
 		private:
 			string *theFunctionName;
 		public:
 			static bool traceIsActive;
-		
+		    static bool brief;
 
 		 inline Trace (const char *name,const char* file) : theFunctionName(0)
 		 {
@@ -145,11 +357,11 @@ namespace ut{
 	void printMatrixInfo(const char *m1,Mat &mat){
 	
 			
-			if (traceIsActive) { 
+			if (traceIsActive && !brief) { 
 			double minVal, maxVal;
 			minMaxLoc(mat, &minVal, &maxVal); 
 
-            cout << "MATRIX NAME: "<< m1 << endl; 
+			cout << "--MATRIX NAME: "<< m1 << " --"<< endl; 
 			cout << "Depth:";
 			switch(mat.depth()){
 // enum { CV_8U=0, CV_8S=1, CV_16U=2, CV_16S=3, CV_32S=4, CV_32F=5, CV_64F=6 };
@@ -166,6 +378,7 @@ namespace ut{
 			cout << "Channels:" << mat.channels() << endl; 
 			cout << " Min Val:" << minVal << " Max Val:" << maxVal <<endl;
 			cout << "RES w x h: " << mat.cols << "x" << mat.rows <<endl; 
+			cout << "##############################################################" <<endl;
 	} 
 	
 	}
@@ -194,7 +407,7 @@ namespace ut{
  ***************************************************************************/
 	void printMatrix(cv::Mat &M){
 	
-		if(traceIsActive){
+		if(traceIsActive && !brief){
 			cout << "M = "<< endl << " "  << M << endl << endl;
 		}
 	}
@@ -282,7 +495,6 @@ void checkObject(const char* obj, vloP obj1, Mat ref)
 		if(consistency) cout << "----     Good Object consistency!" << endl;
 		return;
 }
-
 
 
 };

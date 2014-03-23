@@ -1,10 +1,10 @@
-src/hcell-PoolManager.o: src/PoolManager.cpp src/PoolManager.h \
- src/utils.h src/Slot.h src/MType.h
+src/hcell-PoolManager.o: src/PoolManager.cpp src/PoolManager.h src/Pool.h \
+ src/utils.h src/Slot.h
 
 src/PoolManager.h:
+
+src/Pool.h:
 
 src/utils.h:
 
 src/Slot.h:
-
-src/MType.h:

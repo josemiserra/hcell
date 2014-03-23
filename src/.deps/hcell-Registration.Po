@@ -1,0 +1,23 @@
+src/hcell-Registration.o: src/Registration.cpp src/Registration.h \
+ src/PModule.h src/PoolManager.h src/Pool.h src/utils.h src/Slot.h \
+ src/MType.h src/STree.h src/proctools.h src/Interpreter.h
+
+src/Registration.h:
+
+src/PModule.h:
+
+src/PoolManager.h:
+
+src/Pool.h:
+
+src/utils.h:
+
+src/Slot.h:
+
+src/MType.h:
+
+src/STree.h:
+
+src/proctools.h:
+
+src/Interpreter.h:

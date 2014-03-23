@@ -6,6 +6,9 @@
 #include <memory>
 #include "utils.h"
 
+/***********************************
+  Selects a module.
+**********************************/
 class ModuleSelector
 {
 protected:

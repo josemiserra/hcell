@@ -26,11 +26,12 @@ public:
 	XmlManager(void);
 	~XmlManager(void);
 
-	bool XmlTest (const char* testString, const char* expected, const char* found, bool noEcho = false);
-	bool XmlTest( const char* testString, int expected, int found, bool noEcho = false );
+	bool XmlTest (const char* testString, const char* expected, const char* found);
+	bool XmlTest( const char* testString, int expected, int found);
 	std::vector<Action *> getActionsList(const char* filename);
-
-
+	void findEndTagError(const char* filename);
+	void printUntil(const char* filename, int line,string error);
+	void XmlCheckStructure(TiXmlNode* rootnode);
 };
 
 

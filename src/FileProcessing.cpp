@@ -2,8 +2,7 @@
 #include <stdexcept>
 
 std::map<std::string, FileProcessing::Function > FileProcessing::tFunc;
-std::map<std::string, int> FileProcessing::strtoFormat;
-std::map<std::string, int> FileProcessing::normType;
+std::map<std::string, int> FileProcessing::eMap;
 
 
 int FileProcessing::use_PNG(const char* filename,const char* imageName,int complevel){
@@ -142,9 +141,9 @@ int FileProcessing::use_PM(const char* filename,const char* imageName,int code){
     strcpy( fname, filename);
 	switch(code)
 	{
-	case(FILEFORMATS::PBM) :strcat(fname,".pbm"); break;
-	case(FILEFORMATS::PPM) :strcat(fname,".ppm"); break;
-	case(FILEFORMATS::PGM) :strcat(fname,".pgm"); break;
+	case(WRITEFORMATS::PBM) :strcat(fname,".pbm"); break;
+	case(WRITEFORMATS::PPM) :strcat(fname,".ppm"); break;
+	case(WRITEFORMATS::PGM) :strcat(fname,".pgm"); break;
 	}
 	try {
 		 Mat image2;

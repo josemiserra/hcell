@@ -32,13 +32,10 @@ virtual void executeAction(string current_action,vector<MType *> params,unsigned
 	
 	}
 
-	void clean(std::vector<MType *> parValues,unsigned int pid){
+	void clean(std::vector<MType *> parValues,unsigned int pid)
+	{
 		pool->cleanPools();
 	}
-
-	
-
-
 
 
 };

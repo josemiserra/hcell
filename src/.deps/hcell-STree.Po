@@ -1,0 +1,14 @@
+src/hcell-STree.o: src/STree.cpp src/STree.h src/PoolManager.h src/Pool.h \
+ src/utils.h src/Slot.h src/proctools.h
+
+src/STree.h:
+
+src/PoolManager.h:
+
+src/Pool.h:
+
+src/utils.h:
+
+src/Slot.h:
+
+src/proctools.h:

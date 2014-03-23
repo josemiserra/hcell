@@ -1,0 +1,46 @@
+src/hcell-Checker.o: src/Checker.cpp src/Checker.h src/Action.h \
+ src/MType.h src/STree.h src/PoolManager.h src/Pool.h src/utils.h \
+ src/Slot.h src/proctools.h src/Interpreter.h src/PModule.h src/FlowMap.h \
+ src/FileProcessing.h src/ImageProcessing.h src/BinaryProcessor.h \
+ src/SegmentationProcessing.h src/WatershedSegmenter.h \
+ src/ComputeFeatures.h src/FeatureCalculator.h src/Writer.h
+
+src/Checker.h:
+
+src/Action.h:
+
+src/MType.h:
+
+src/STree.h:
+
+src/PoolManager.h:
+
+src/Pool.h:
+
+src/utils.h:
+
+src/Slot.h:
+
+src/proctools.h:
+
+src/Interpreter.h:
+
+src/PModule.h:
+
+src/FlowMap.h:
+
+src/FileProcessing.h:
+
+src/ImageProcessing.h:
+
+src/BinaryProcessor.h:
+
+src/SegmentationProcessing.h:
+
+src/WatershedSegmenter.h:
+
+src/ComputeFeatures.h:
+
+src/FeatureCalculator.h:
+
+src/Writer.h:

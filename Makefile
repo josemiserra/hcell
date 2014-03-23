@@ -58,16 +58,23 @@ PROGRAMS = $(bin_PROGRAMS)
 am__dirstamp = $(am__leading_dot)dirstamp
 am_hcell_OBJECTS = src/hcell-utils.$(OBJEXT) \
 	src/hcell-PModule.$(OBJEXT) src/hcell-Action.$(OBJEXT) \
-	src/hcell-ActionLoader.$(OBJEXT) \
+	src/hcell-ActionLoader.$(OBJEXT) src/hcell-Analysis.$(OBJEXT) \
+	src/hcell-BinaryProcessor.$(OBJEXT) \
+	src/hcell-Checker.$(OBJEXT) \
 	src/hcell-ComputeFeatures.$(OBJEXT) \
 	src/hcell-FeatureCalculator.$(OBJEXT) \
-	src/hcell-FileProcessing.$(OBJEXT) src/hcell-General.$(OBJEXT) \
+	src/hcell-FileProcessing.$(OBJEXT) src/hcell-FlowMap.$(OBJEXT) \
+	src/hcell-General.$(OBJEXT) \
 	src/hcell-ImageProcessing.$(OBJEXT) \
-	src/hcell-PipelineGraph.$(OBJEXT) src/hcell-Pipeline.$(OBJEXT) \
-	src/hcell-PoolManager.$(OBJEXT) src/hcell-proctools.$(OBJEXT) \
+	src/hcell-Interpreter.$(OBJEXT) \
+	src/hcell-MachineLearning.$(OBJEXT) src/hcell-MType.$(OBJEXT) \
+	src/hcell-Pipeline.$(OBJEXT) src/hcell-PoolManager.$(OBJEXT) \
+	src/hcell-Pool.$(OBJEXT) src/hcell-proctools.$(OBJEXT) \
+	src/hcell-Registration.$(OBJEXT) \
 	src/hcell-SegmentationProcessing.$(OBJEXT) \
-	src/hcell-Slot.$(OBJEXT) src/hcell-tinystr.$(OBJEXT) \
-	src/hcell-tinyxml.$(OBJEXT) src/hcell-tinyxmlerror.$(OBJEXT) \
+	src/hcell-Slot.$(OBJEXT) src/hcell-STree.$(OBJEXT) \
+	src/hcell-tinystr.$(OBJEXT) src/hcell-tinyxml.$(OBJEXT) \
+	src/hcell-tinyxmlerror.$(OBJEXT) \
 	src/hcell-tinyxmlparser.$(OBJEXT) \
 	src/hcell-WatershedSegmenter.$(OBJEXT) \
 	src/hcell-Writer.$(OBJEXT) src/hcell-XmlManager.$(OBJEXT) \
@@ -189,15 +196,15 @@ LTLIBOBJS =
 MAKEINFO = makeinfo
 MKDIR_P = /bin/mkdir -p
 OBJEXT = o
-OPENCV_CFLAGS = -I/usr/include/opencv  
-OPENCV_LIBS = -lopencv_core -lopencv_imgproc -lopencv_highgui -lopencv_ml -lopencv_video -lopencv_features2d -lopencv_calib3d -lopencv_objdetect -lopencv_contrib -lopencv_legacy -lopencv_flann  
+OPENCV_CFLAGS = -I/usr/local/include/opencv -I/usr/local/include  
+OPENCV_LIBS = /usr/local/lib/libopencv_calib3d.so /usr/local/lib/libopencv_contrib.so /usr/local/lib/libopencv_core.so /usr/local/lib/libopencv_features2d.so /usr/local/lib/libopencv_flann.so /usr/local/lib/libopencv_gpu.so /usr/local/lib/libopencv_highgui.so /usr/local/lib/libopencv_imgproc.so /usr/local/lib/libopencv_legacy.so /usr/local/lib/libopencv_ml.so /usr/local/lib/libopencv_nonfree.so /usr/local/lib/libopencv_objdetect.so /usr/local/lib/libopencv_ocl.so /usr/local/lib/libopencv_photo.so /usr/local/lib/libopencv_stitching.so /usr/local/lib/libopencv_superres.so /usr/local/lib/libopencv_ts.a /usr/local/lib/libopencv_video.so /usr/local/lib/libopencv_videostab.so -ltbb -lrt -lpthread -lm -ldl  
 PACKAGE = hcell
 PACKAGE_BUGREPORT = serrajosemi@gmail.com
 PACKAGE_NAME = hcell
-PACKAGE_STRING = hcell 0.5.21
+PACKAGE_STRING = hcell 0.7.0
 PACKAGE_TARNAME = hcell
 PACKAGE_URL = http:://hcellapp.blogspot.com/
-PACKAGE_VERSION = 0.5.21
+PACKAGE_VERSION = 0.7.0
 PATH_SEPARATOR = :
 PKG_CONFIG = /usr/bin/pkg-config
 PKG_CONFIG_LIBDIR = 
@@ -205,11 +212,11 @@ PKG_CONFIG_PATH =
 SET_MAKE = 
 SHELL = /bin/bash
 STRIP = 
-VERSION = 0.5.21
-abs_builddir = /home/josemi/hcell
-abs_srcdir = /home/josemi/hcell
-abs_top_builddir = /home/josemi/hcell
-abs_top_srcdir = /home/josemi/hcell
+VERSION = 0.7.0
+abs_builddir = /home/jms/hcell
+abs_srcdir = /home/jms/hcell
+abs_top_builddir = /home/jms/hcell
+abs_top_srcdir = /home/jms/hcell
 ac_ct_CC = gcc
 ac_ct_CXX = g++
 am__include = include
@@ -229,7 +236,7 @@ host_alias =
 htmldir = ${docdir}
 includedir = ${prefix}/include
 infodir = ${datarootdir}/info
-install_sh = ${SHELL} /home/josemi/install-sh
+install_sh = ${SHELL} /home/jms/install-sh
 libdir = ${exec_prefix}/lib
 libexecdir = ${exec_prefix}/libexec
 localedir = ${datarootdir}/locale
@@ -257,17 +264,25 @@ src/utils.cpp src/utils.h \
 src/PModule.cpp src/PModule.h \
 src/Action.cpp src/Action.h \
 src/ActionLoader.cpp src/ActionLoader.h \
+src/Analysis.h src/Analysis.cpp \
+src/BinaryProcessor.h src/BinaryProcessor.cpp \
+src/Checker.h src/Checker.cpp \
 src/ComputeFeatures.cpp src/ComputeFeatures.h src/FeatureCalculator.cpp src/FeatureCalculator.h \
 src/FileProcessing.cpp src/FileProcessing.h \
+src/FlowMap.cpp src/FlowMap.h \
 src/General.cpp src/General.h\
 src/ImageProcessing.cpp src/ImageProcessing.h \
-src/MAllTypes.h src/ModuleSelector.h src/MType.h \
-src/PipelineGraph.cpp src/PipelineGraph.h \
+src/Interpreter.h src/Interpreter.cpp \
+src/MachineLearning.h src/MachineLearning.cpp \
+src/MType.h src/MType.cpp src/ModuleSelector.h src/MType.h \
 src/Pipeline.h src/Pipeline.cpp  \
 src/PoolManager.cpp src/PoolManager.h \
+src/Pool.cpp src/Pool.h \
 src/proctools.cpp src/proctools.h \
+src/Registration.cpp src/Registration.h \
 src/SegmentationProcessing.cpp src/SegmentationProcessing.h \
 src/Slot.cpp src/Slot.h \
+src/STree.cpp src/STree.h \
 src/tinystr.cpp src/tinystr.h src/tinyxml.cpp src/tinyxmlerror.cpp src/tinyxml.h src/tinyxmlparser.cpp \
 src/WatershedSegmenter.cpp src/WatershedSegmenter.h \
 src/Writer.cpp src/Writer.h \
@@ -384,27 +399,45 @@ src/hcell-Action.$(OBJEXT): src/$(am__dirstamp) \
 	src/$(DEPDIR)/$(am__dirstamp)
 src/hcell-ActionLoader.$(OBJEXT): src/$(am__dirstamp) \
 	src/$(DEPDIR)/$(am__dirstamp)
+src/hcell-Analysis.$(OBJEXT): src/$(am__dirstamp) \
+	src/$(DEPDIR)/$(am__dirstamp)
+src/hcell-BinaryProcessor.$(OBJEXT): src/$(am__dirstamp) \
+	src/$(DEPDIR)/$(am__dirstamp)
+src/hcell-Checker.$(OBJEXT): src/$(am__dirstamp) \
+	src/$(DEPDIR)/$(am__dirstamp)
 src/hcell-ComputeFeatures.$(OBJEXT): src/$(am__dirstamp) \
 	src/$(DEPDIR)/$(am__dirstamp)
 src/hcell-FeatureCalculator.$(OBJEXT): src/$(am__dirstamp) \
 	src/$(DEPDIR)/$(am__dirstamp)
 src/hcell-FileProcessing.$(OBJEXT): src/$(am__dirstamp) \
 	src/$(DEPDIR)/$(am__dirstamp)
+src/hcell-FlowMap.$(OBJEXT): src/$(am__dirstamp) \
+	src/$(DEPDIR)/$(am__dirstamp)
 src/hcell-General.$(OBJEXT): src/$(am__dirstamp) \
 	src/$(DEPDIR)/$(am__dirstamp)
 src/hcell-ImageProcessing.$(OBJEXT): src/$(am__dirstamp) \
 	src/$(DEPDIR)/$(am__dirstamp)
-src/hcell-PipelineGraph.$(OBJEXT): src/$(am__dirstamp) \
+src/hcell-Interpreter.$(OBJEXT): src/$(am__dirstamp) \
+	src/$(DEPDIR)/$(am__dirstamp)
+src/hcell-MachineLearning.$(OBJEXT): src/$(am__dirstamp) \
+	src/$(DEPDIR)/$(am__dirstamp)
+src/hcell-MType.$(OBJEXT): src/$(am__dirstamp) \
 	src/$(DEPDIR)/$(am__dirstamp)
 src/hcell-Pipeline.$(OBJEXT): src/$(am__dirstamp) \
 	src/$(DEPDIR)/$(am__dirstamp)
 src/hcell-PoolManager.$(OBJEXT): src/$(am__dirstamp) \
 	src/$(DEPDIR)/$(am__dirstamp)
+src/hcell-Pool.$(OBJEXT): src/$(am__dirstamp) \
+	src/$(DEPDIR)/$(am__dirstamp)
 src/hcell-proctools.$(OBJEXT): src/$(am__dirstamp) \
+	src/$(DEPDIR)/$(am__dirstamp)
+src/hcell-Registration.$(OBJEXT): src/$(am__dirstamp) \
 	src/$(DEPDIR)/$(am__dirstamp)
 src/hcell-SegmentationProcessing.$(OBJEXT): src/$(am__dirstamp) \
 	src/$(DEPDIR)/$(am__dirstamp)
 src/hcell-Slot.$(OBJEXT): src/$(am__dirstamp) \
+	src/$(DEPDIR)/$(am__dirstamp)
+src/hcell-STree.$(OBJEXT): src/$(am__dirstamp) \
 	src/$(DEPDIR)/$(am__dirstamp)
 src/hcell-tinystr.$(OBJEXT): src/$(am__dirstamp) \
 	src/$(DEPDIR)/$(am__dirstamp)
@@ -430,16 +463,25 @@ mostlyclean-compile:
 	-rm -f *.$(OBJEXT)
 	-rm -f src/hcell-Action.$(OBJEXT)
 	-rm -f src/hcell-ActionLoader.$(OBJEXT)
+	-rm -f src/hcell-Analysis.$(OBJEXT)
+	-rm -f src/hcell-BinaryProcessor.$(OBJEXT)
+	-rm -f src/hcell-Checker.$(OBJEXT)
 	-rm -f src/hcell-ComputeFeatures.$(OBJEXT)
 	-rm -f src/hcell-FeatureCalculator.$(OBJEXT)
 	-rm -f src/hcell-FileProcessing.$(OBJEXT)
+	-rm -f src/hcell-FlowMap.$(OBJEXT)
 	-rm -f src/hcell-General.$(OBJEXT)
 	-rm -f src/hcell-Hcell.$(OBJEXT)
 	-rm -f src/hcell-ImageProcessing.$(OBJEXT)
+	-rm -f src/hcell-Interpreter.$(OBJEXT)
+	-rm -f src/hcell-MType.$(OBJEXT)
+	-rm -f src/hcell-MachineLearning.$(OBJEXT)
 	-rm -f src/hcell-PModule.$(OBJEXT)
 	-rm -f src/hcell-Pipeline.$(OBJEXT)
-	-rm -f src/hcell-PipelineGraph.$(OBJEXT)
+	-rm -f src/hcell-Pool.$(OBJEXT)
 	-rm -f src/hcell-PoolManager.$(OBJEXT)
+	-rm -f src/hcell-Registration.$(OBJEXT)
+	-rm -f src/hcell-STree.$(OBJEXT)
 	-rm -f src/hcell-SegmentationProcessing.$(OBJEXT)
 	-rm -f src/hcell-Slot.$(OBJEXT)
 	-rm -f src/hcell-WatershedSegmenter.$(OBJEXT)
@@ -457,16 +499,25 @@ distclean-compile:
 
 include src/$(DEPDIR)/hcell-Action.Po
 include src/$(DEPDIR)/hcell-ActionLoader.Po
+include src/$(DEPDIR)/hcell-Analysis.Po
+include src/$(DEPDIR)/hcell-BinaryProcessor.Po
+include src/$(DEPDIR)/hcell-Checker.Po
 include src/$(DEPDIR)/hcell-ComputeFeatures.Po
 include src/$(DEPDIR)/hcell-FeatureCalculator.Po
 include src/$(DEPDIR)/hcell-FileProcessing.Po
+include src/$(DEPDIR)/hcell-FlowMap.Po
 include src/$(DEPDIR)/hcell-General.Po
 include src/$(DEPDIR)/hcell-Hcell.Po
 include src/$(DEPDIR)/hcell-ImageProcessing.Po
+include src/$(DEPDIR)/hcell-Interpreter.Po
+include src/$(DEPDIR)/hcell-MType.Po
+include src/$(DEPDIR)/hcell-MachineLearning.Po
 include src/$(DEPDIR)/hcell-PModule.Po
 include src/$(DEPDIR)/hcell-Pipeline.Po
-include src/$(DEPDIR)/hcell-PipelineGraph.Po
+include src/$(DEPDIR)/hcell-Pool.Po
 include src/$(DEPDIR)/hcell-PoolManager.Po
+include src/$(DEPDIR)/hcell-Registration.Po
+include src/$(DEPDIR)/hcell-STree.Po
 include src/$(DEPDIR)/hcell-SegmentationProcessing.Po
 include src/$(DEPDIR)/hcell-Slot.Po
 include src/$(DEPDIR)/hcell-WatershedSegmenter.Po
@@ -551,6 +602,48 @@ src/hcell-ActionLoader.obj: src/ActionLoader.cpp
 #	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) \
 #	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(hcell_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o src/hcell-ActionLoader.obj `if test -f 'src/ActionLoader.cpp'; then $(CYGPATH_W) 'src/ActionLoader.cpp'; else $(CYGPATH_W) '$(srcdir)/src/ActionLoader.cpp'; fi`
 
+src/hcell-Analysis.o: src/Analysis.cpp
+	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(hcell_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT src/hcell-Analysis.o -MD -MP -MF src/$(DEPDIR)/hcell-Analysis.Tpo -c -o src/hcell-Analysis.o `test -f 'src/Analysis.cpp' || echo '$(srcdir)/'`src/Analysis.cpp
+	$(am__mv) src/$(DEPDIR)/hcell-Analysis.Tpo src/$(DEPDIR)/hcell-Analysis.Po
+#	source='src/Analysis.cpp' object='src/hcell-Analysis.o' libtool=no \
+#	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) \
+#	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(hcell_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o src/hcell-Analysis.o `test -f 'src/Analysis.cpp' || echo '$(srcdir)/'`src/Analysis.cpp
+
+src/hcell-Analysis.obj: src/Analysis.cpp
+	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(hcell_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT src/hcell-Analysis.obj -MD -MP -MF src/$(DEPDIR)/hcell-Analysis.Tpo -c -o src/hcell-Analysis.obj `if test -f 'src/Analysis.cpp'; then $(CYGPATH_W) 'src/Analysis.cpp'; else $(CYGPATH_W) '$(srcdir)/src/Analysis.cpp'; fi`
+	$(am__mv) src/$(DEPDIR)/hcell-Analysis.Tpo src/$(DEPDIR)/hcell-Analysis.Po
+#	source='src/Analysis.cpp' object='src/hcell-Analysis.obj' libtool=no \
+#	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) \
+#	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(hcell_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o src/hcell-Analysis.obj `if test -f 'src/Analysis.cpp'; then $(CYGPATH_W) 'src/Analysis.cpp'; else $(CYGPATH_W) '$(srcdir)/src/Analysis.cpp'; fi`
+
+src/hcell-BinaryProcessor.o: src/BinaryProcessor.cpp
+	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(hcell_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT src/hcell-BinaryProcessor.o -MD -MP -MF src/$(DEPDIR)/hcell-BinaryProcessor.Tpo -c -o src/hcell-BinaryProcessor.o `test -f 'src/BinaryProcessor.cpp' || echo '$(srcdir)/'`src/BinaryProcessor.cpp
+	$(am__mv) src/$(DEPDIR)/hcell-BinaryProcessor.Tpo src/$(DEPDIR)/hcell-BinaryProcessor.Po
+#	source='src/BinaryProcessor.cpp' object='src/hcell-BinaryProcessor.o' libtool=no \
+#	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) \
+#	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(hcell_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o src/hcell-BinaryProcessor.o `test -f 'src/BinaryProcessor.cpp' || echo '$(srcdir)/'`src/BinaryProcessor.cpp
+
+src/hcell-BinaryProcessor.obj: src/BinaryProcessor.cpp
+	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(hcell_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT src/hcell-BinaryProcessor.obj -MD -MP -MF src/$(DEPDIR)/hcell-BinaryProcessor.Tpo -c -o src/hcell-BinaryProcessor.obj `if test -f 'src/BinaryProcessor.cpp'; then $(CYGPATH_W) 'src/BinaryProcessor.cpp'; else $(CYGPATH_W) '$(srcdir)/src/BinaryProcessor.cpp'; fi`
+	$(am__mv) src/$(DEPDIR)/hcell-BinaryProcessor.Tpo src/$(DEPDIR)/hcell-BinaryProcessor.Po
+#	source='src/BinaryProcessor.cpp' object='src/hcell-BinaryProcessor.obj' libtool=no \
+#	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) \
+#	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(hcell_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o src/hcell-BinaryProcessor.obj `if test -f 'src/BinaryProcessor.cpp'; then $(CYGPATH_W) 'src/BinaryProcessor.cpp'; else $(CYGPATH_W) '$(srcdir)/src/BinaryProcessor.cpp'; fi`
+
+src/hcell-Checker.o: src/Checker.cpp
+	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(hcell_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT src/hcell-Checker.o -MD -MP -MF src/$(DEPDIR)/hcell-Checker.Tpo -c -o src/hcell-Checker.o `test -f 'src/Checker.cpp' || echo '$(srcdir)/'`src/Checker.cpp
+	$(am__mv) src/$(DEPDIR)/hcell-Checker.Tpo src/$(DEPDIR)/hcell-Checker.Po
+#	source='src/Checker.cpp' object='src/hcell-Checker.o' libtool=no \
+#	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) \
+#	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(hcell_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o src/hcell-Checker.o `test -f 'src/Checker.cpp' || echo '$(srcdir)/'`src/Checker.cpp
+
+src/hcell-Checker.obj: src/Checker.cpp
+	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(hcell_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT src/hcell-Checker.obj -MD -MP -MF src/$(DEPDIR)/hcell-Checker.Tpo -c -o src/hcell-Checker.obj `if test -f 'src/Checker.cpp'; then $(CYGPATH_W) 'src/Checker.cpp'; else $(CYGPATH_W) '$(srcdir)/src/Checker.cpp'; fi`
+	$(am__mv) src/$(DEPDIR)/hcell-Checker.Tpo src/$(DEPDIR)/hcell-Checker.Po
+#	source='src/Checker.cpp' object='src/hcell-Checker.obj' libtool=no \
+#	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) \
+#	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(hcell_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o src/hcell-Checker.obj `if test -f 'src/Checker.cpp'; then $(CYGPATH_W) 'src/Checker.cpp'; else $(CYGPATH_W) '$(srcdir)/src/Checker.cpp'; fi`
+
 src/hcell-ComputeFeatures.o: src/ComputeFeatures.cpp
 	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(hcell_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT src/hcell-ComputeFeatures.o -MD -MP -MF src/$(DEPDIR)/hcell-ComputeFeatures.Tpo -c -o src/hcell-ComputeFeatures.o `test -f 'src/ComputeFeatures.cpp' || echo '$(srcdir)/'`src/ComputeFeatures.cpp
 	$(am__mv) src/$(DEPDIR)/hcell-ComputeFeatures.Tpo src/$(DEPDIR)/hcell-ComputeFeatures.Po
@@ -593,6 +686,20 @@ src/hcell-FileProcessing.obj: src/FileProcessing.cpp
 #	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) \
 #	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(hcell_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o src/hcell-FileProcessing.obj `if test -f 'src/FileProcessing.cpp'; then $(CYGPATH_W) 'src/FileProcessing.cpp'; else $(CYGPATH_W) '$(srcdir)/src/FileProcessing.cpp'; fi`
 
+src/hcell-FlowMap.o: src/FlowMap.cpp
+	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(hcell_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT src/hcell-FlowMap.o -MD -MP -MF src/$(DEPDIR)/hcell-FlowMap.Tpo -c -o src/hcell-FlowMap.o `test -f 'src/FlowMap.cpp' || echo '$(srcdir)/'`src/FlowMap.cpp
+	$(am__mv) src/$(DEPDIR)/hcell-FlowMap.Tpo src/$(DEPDIR)/hcell-FlowMap.Po
+#	source='src/FlowMap.cpp' object='src/hcell-FlowMap.o' libtool=no \
+#	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) \
+#	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(hcell_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o src/hcell-FlowMap.o `test -f 'src/FlowMap.cpp' || echo '$(srcdir)/'`src/FlowMap.cpp
+
+src/hcell-FlowMap.obj: src/FlowMap.cpp
+	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(hcell_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT src/hcell-FlowMap.obj -MD -MP -MF src/$(DEPDIR)/hcell-FlowMap.Tpo -c -o src/hcell-FlowMap.obj `if test -f 'src/FlowMap.cpp'; then $(CYGPATH_W) 'src/FlowMap.cpp'; else $(CYGPATH_W) '$(srcdir)/src/FlowMap.cpp'; fi`
+	$(am__mv) src/$(DEPDIR)/hcell-FlowMap.Tpo src/$(DEPDIR)/hcell-FlowMap.Po
+#	source='src/FlowMap.cpp' object='src/hcell-FlowMap.obj' libtool=no \
+#	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) \
+#	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(hcell_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o src/hcell-FlowMap.obj `if test -f 'src/FlowMap.cpp'; then $(CYGPATH_W) 'src/FlowMap.cpp'; else $(CYGPATH_W) '$(srcdir)/src/FlowMap.cpp'; fi`
+
 src/hcell-General.o: src/General.cpp
 	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(hcell_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT src/hcell-General.o -MD -MP -MF src/$(DEPDIR)/hcell-General.Tpo -c -o src/hcell-General.o `test -f 'src/General.cpp' || echo '$(srcdir)/'`src/General.cpp
 	$(am__mv) src/$(DEPDIR)/hcell-General.Tpo src/$(DEPDIR)/hcell-General.Po
@@ -621,19 +728,47 @@ src/hcell-ImageProcessing.obj: src/ImageProcessing.cpp
 #	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) \
 #	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(hcell_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o src/hcell-ImageProcessing.obj `if test -f 'src/ImageProcessing.cpp'; then $(CYGPATH_W) 'src/ImageProcessing.cpp'; else $(CYGPATH_W) '$(srcdir)/src/ImageProcessing.cpp'; fi`
 
-src/hcell-PipelineGraph.o: src/PipelineGraph.cpp
-	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(hcell_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT src/hcell-PipelineGraph.o -MD -MP -MF src/$(DEPDIR)/hcell-PipelineGraph.Tpo -c -o src/hcell-PipelineGraph.o `test -f 'src/PipelineGraph.cpp' || echo '$(srcdir)/'`src/PipelineGraph.cpp
-	$(am__mv) src/$(DEPDIR)/hcell-PipelineGraph.Tpo src/$(DEPDIR)/hcell-PipelineGraph.Po
-#	source='src/PipelineGraph.cpp' object='src/hcell-PipelineGraph.o' libtool=no \
+src/hcell-Interpreter.o: src/Interpreter.cpp
+	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(hcell_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT src/hcell-Interpreter.o -MD -MP -MF src/$(DEPDIR)/hcell-Interpreter.Tpo -c -o src/hcell-Interpreter.o `test -f 'src/Interpreter.cpp' || echo '$(srcdir)/'`src/Interpreter.cpp
+	$(am__mv) src/$(DEPDIR)/hcell-Interpreter.Tpo src/$(DEPDIR)/hcell-Interpreter.Po
+#	source='src/Interpreter.cpp' object='src/hcell-Interpreter.o' libtool=no \
 #	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) \
-#	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(hcell_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o src/hcell-PipelineGraph.o `test -f 'src/PipelineGraph.cpp' || echo '$(srcdir)/'`src/PipelineGraph.cpp
+#	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(hcell_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o src/hcell-Interpreter.o `test -f 'src/Interpreter.cpp' || echo '$(srcdir)/'`src/Interpreter.cpp
 
-src/hcell-PipelineGraph.obj: src/PipelineGraph.cpp
-	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(hcell_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT src/hcell-PipelineGraph.obj -MD -MP -MF src/$(DEPDIR)/hcell-PipelineGraph.Tpo -c -o src/hcell-PipelineGraph.obj `if test -f 'src/PipelineGraph.cpp'; then $(CYGPATH_W) 'src/PipelineGraph.cpp'; else $(CYGPATH_W) '$(srcdir)/src/PipelineGraph.cpp'; fi`
-	$(am__mv) src/$(DEPDIR)/hcell-PipelineGraph.Tpo src/$(DEPDIR)/hcell-PipelineGraph.Po
-#	source='src/PipelineGraph.cpp' object='src/hcell-PipelineGraph.obj' libtool=no \
+src/hcell-Interpreter.obj: src/Interpreter.cpp
+	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(hcell_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT src/hcell-Interpreter.obj -MD -MP -MF src/$(DEPDIR)/hcell-Interpreter.Tpo -c -o src/hcell-Interpreter.obj `if test -f 'src/Interpreter.cpp'; then $(CYGPATH_W) 'src/Interpreter.cpp'; else $(CYGPATH_W) '$(srcdir)/src/Interpreter.cpp'; fi`
+	$(am__mv) src/$(DEPDIR)/hcell-Interpreter.Tpo src/$(DEPDIR)/hcell-Interpreter.Po
+#	source='src/Interpreter.cpp' object='src/hcell-Interpreter.obj' libtool=no \
 #	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) \
-#	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(hcell_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o src/hcell-PipelineGraph.obj `if test -f 'src/PipelineGraph.cpp'; then $(CYGPATH_W) 'src/PipelineGraph.cpp'; else $(CYGPATH_W) '$(srcdir)/src/PipelineGraph.cpp'; fi`
+#	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(hcell_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o src/hcell-Interpreter.obj `if test -f 'src/Interpreter.cpp'; then $(CYGPATH_W) 'src/Interpreter.cpp'; else $(CYGPATH_W) '$(srcdir)/src/Interpreter.cpp'; fi`
+
+src/hcell-MachineLearning.o: src/MachineLearning.cpp
+	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(hcell_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT src/hcell-MachineLearning.o -MD -MP -MF src/$(DEPDIR)/hcell-MachineLearning.Tpo -c -o src/hcell-MachineLearning.o `test -f 'src/MachineLearning.cpp' || echo '$(srcdir)/'`src/MachineLearning.cpp
+	$(am__mv) src/$(DEPDIR)/hcell-MachineLearning.Tpo src/$(DEPDIR)/hcell-MachineLearning.Po
+#	source='src/MachineLearning.cpp' object='src/hcell-MachineLearning.o' libtool=no \
+#	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) \
+#	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(hcell_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o src/hcell-MachineLearning.o `test -f 'src/MachineLearning.cpp' || echo '$(srcdir)/'`src/MachineLearning.cpp
+
+src/hcell-MachineLearning.obj: src/MachineLearning.cpp
+	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(hcell_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT src/hcell-MachineLearning.obj -MD -MP -MF src/$(DEPDIR)/hcell-MachineLearning.Tpo -c -o src/hcell-MachineLearning.obj `if test -f 'src/MachineLearning.cpp'; then $(CYGPATH_W) 'src/MachineLearning.cpp'; else $(CYGPATH_W) '$(srcdir)/src/MachineLearning.cpp'; fi`
+	$(am__mv) src/$(DEPDIR)/hcell-MachineLearning.Tpo src/$(DEPDIR)/hcell-MachineLearning.Po
+#	source='src/MachineLearning.cpp' object='src/hcell-MachineLearning.obj' libtool=no \
+#	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) \
+#	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(hcell_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o src/hcell-MachineLearning.obj `if test -f 'src/MachineLearning.cpp'; then $(CYGPATH_W) 'src/MachineLearning.cpp'; else $(CYGPATH_W) '$(srcdir)/src/MachineLearning.cpp'; fi`
+
+src/hcell-MType.o: src/MType.cpp
+	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(hcell_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT src/hcell-MType.o -MD -MP -MF src/$(DEPDIR)/hcell-MType.Tpo -c -o src/hcell-MType.o `test -f 'src/MType.cpp' || echo '$(srcdir)/'`src/MType.cpp
+	$(am__mv) src/$(DEPDIR)/hcell-MType.Tpo src/$(DEPDIR)/hcell-MType.Po
+#	source='src/MType.cpp' object='src/hcell-MType.o' libtool=no \
+#	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) \
+#	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(hcell_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o src/hcell-MType.o `test -f 'src/MType.cpp' || echo '$(srcdir)/'`src/MType.cpp
+
+src/hcell-MType.obj: src/MType.cpp
+	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(hcell_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT src/hcell-MType.obj -MD -MP -MF src/$(DEPDIR)/hcell-MType.Tpo -c -o src/hcell-MType.obj `if test -f 'src/MType.cpp'; then $(CYGPATH_W) 'src/MType.cpp'; else $(CYGPATH_W) '$(srcdir)/src/MType.cpp'; fi`
+	$(am__mv) src/$(DEPDIR)/hcell-MType.Tpo src/$(DEPDIR)/hcell-MType.Po
+#	source='src/MType.cpp' object='src/hcell-MType.obj' libtool=no \
+#	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) \
+#	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(hcell_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o src/hcell-MType.obj `if test -f 'src/MType.cpp'; then $(CYGPATH_W) 'src/MType.cpp'; else $(CYGPATH_W) '$(srcdir)/src/MType.cpp'; fi`
 
 src/hcell-Pipeline.o: src/Pipeline.cpp
 	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(hcell_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT src/hcell-Pipeline.o -MD -MP -MF src/$(DEPDIR)/hcell-Pipeline.Tpo -c -o src/hcell-Pipeline.o `test -f 'src/Pipeline.cpp' || echo '$(srcdir)/'`src/Pipeline.cpp
@@ -663,6 +798,20 @@ src/hcell-PoolManager.obj: src/PoolManager.cpp
 #	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) \
 #	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(hcell_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o src/hcell-PoolManager.obj `if test -f 'src/PoolManager.cpp'; then $(CYGPATH_W) 'src/PoolManager.cpp'; else $(CYGPATH_W) '$(srcdir)/src/PoolManager.cpp'; fi`
 
+src/hcell-Pool.o: src/Pool.cpp
+	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(hcell_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT src/hcell-Pool.o -MD -MP -MF src/$(DEPDIR)/hcell-Pool.Tpo -c -o src/hcell-Pool.o `test -f 'src/Pool.cpp' || echo '$(srcdir)/'`src/Pool.cpp
+	$(am__mv) src/$(DEPDIR)/hcell-Pool.Tpo src/$(DEPDIR)/hcell-Pool.Po
+#	source='src/Pool.cpp' object='src/hcell-Pool.o' libtool=no \
+#	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) \
+#	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(hcell_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o src/hcell-Pool.o `test -f 'src/Pool.cpp' || echo '$(srcdir)/'`src/Pool.cpp
+
+src/hcell-Pool.obj: src/Pool.cpp
+	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(hcell_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT src/hcell-Pool.obj -MD -MP -MF src/$(DEPDIR)/hcell-Pool.Tpo -c -o src/hcell-Pool.obj `if test -f 'src/Pool.cpp'; then $(CYGPATH_W) 'src/Pool.cpp'; else $(CYGPATH_W) '$(srcdir)/src/Pool.cpp'; fi`
+	$(am__mv) src/$(DEPDIR)/hcell-Pool.Tpo src/$(DEPDIR)/hcell-Pool.Po
+#	source='src/Pool.cpp' object='src/hcell-Pool.obj' libtool=no \
+#	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) \
+#	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(hcell_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o src/hcell-Pool.obj `if test -f 'src/Pool.cpp'; then $(CYGPATH_W) 'src/Pool.cpp'; else $(CYGPATH_W) '$(srcdir)/src/Pool.cpp'; fi`
+
 src/hcell-proctools.o: src/proctools.cpp
 	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(hcell_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT src/hcell-proctools.o -MD -MP -MF src/$(DEPDIR)/hcell-proctools.Tpo -c -o src/hcell-proctools.o `test -f 'src/proctools.cpp' || echo '$(srcdir)/'`src/proctools.cpp
 	$(am__mv) src/$(DEPDIR)/hcell-proctools.Tpo src/$(DEPDIR)/hcell-proctools.Po
@@ -676,6 +825,20 @@ src/hcell-proctools.obj: src/proctools.cpp
 #	source='src/proctools.cpp' object='src/hcell-proctools.obj' libtool=no \
 #	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) \
 #	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(hcell_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o src/hcell-proctools.obj `if test -f 'src/proctools.cpp'; then $(CYGPATH_W) 'src/proctools.cpp'; else $(CYGPATH_W) '$(srcdir)/src/proctools.cpp'; fi`
+
+src/hcell-Registration.o: src/Registration.cpp
+	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(hcell_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT src/hcell-Registration.o -MD -MP -MF src/$(DEPDIR)/hcell-Registration.Tpo -c -o src/hcell-Registration.o `test -f 'src/Registration.cpp' || echo '$(srcdir)/'`src/Registration.cpp
+	$(am__mv) src/$(DEPDIR)/hcell-Registration.Tpo src/$(DEPDIR)/hcell-Registration.Po
+#	source='src/Registration.cpp' object='src/hcell-Registration.o' libtool=no \
+#	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) \
+#	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(hcell_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o src/hcell-Registration.o `test -f 'src/Registration.cpp' || echo '$(srcdir)/'`src/Registration.cpp
+
+src/hcell-Registration.obj: src/Registration.cpp
+	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(hcell_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT src/hcell-Registration.obj -MD -MP -MF src/$(DEPDIR)/hcell-Registration.Tpo -c -o src/hcell-Registration.obj `if test -f 'src/Registration.cpp'; then $(CYGPATH_W) 'src/Registration.cpp'; else $(CYGPATH_W) '$(srcdir)/src/Registration.cpp'; fi`
+	$(am__mv) src/$(DEPDIR)/hcell-Registration.Tpo src/$(DEPDIR)/hcell-Registration.Po
+#	source='src/Registration.cpp' object='src/hcell-Registration.obj' libtool=no \
+#	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) \
+#	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(hcell_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o src/hcell-Registration.obj `if test -f 'src/Registration.cpp'; then $(CYGPATH_W) 'src/Registration.cpp'; else $(CYGPATH_W) '$(srcdir)/src/Registration.cpp'; fi`
 
 src/hcell-SegmentationProcessing.o: src/SegmentationProcessing.cpp
 	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(hcell_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT src/hcell-SegmentationProcessing.o -MD -MP -MF src/$(DEPDIR)/hcell-SegmentationProcessing.Tpo -c -o src/hcell-SegmentationProcessing.o `test -f 'src/SegmentationProcessing.cpp' || echo '$(srcdir)/'`src/SegmentationProcessing.cpp
@@ -704,6 +867,20 @@ src/hcell-Slot.obj: src/Slot.cpp
 #	source='src/Slot.cpp' object='src/hcell-Slot.obj' libtool=no \
 #	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) \
 #	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(hcell_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o src/hcell-Slot.obj `if test -f 'src/Slot.cpp'; then $(CYGPATH_W) 'src/Slot.cpp'; else $(CYGPATH_W) '$(srcdir)/src/Slot.cpp'; fi`
+
+src/hcell-STree.o: src/STree.cpp
+	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(hcell_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT src/hcell-STree.o -MD -MP -MF src/$(DEPDIR)/hcell-STree.Tpo -c -o src/hcell-STree.o `test -f 'src/STree.cpp' || echo '$(srcdir)/'`src/STree.cpp
+	$(am__mv) src/$(DEPDIR)/hcell-STree.Tpo src/$(DEPDIR)/hcell-STree.Po
+#	source='src/STree.cpp' object='src/hcell-STree.o' libtool=no \
+#	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) \
+#	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(hcell_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o src/hcell-STree.o `test -f 'src/STree.cpp' || echo '$(srcdir)/'`src/STree.cpp
+
+src/hcell-STree.obj: src/STree.cpp
+	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(hcell_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT src/hcell-STree.obj -MD -MP -MF src/$(DEPDIR)/hcell-STree.Tpo -c -o src/hcell-STree.obj `if test -f 'src/STree.cpp'; then $(CYGPATH_W) 'src/STree.cpp'; else $(CYGPATH_W) '$(srcdir)/src/STree.cpp'; fi`
+	$(am__mv) src/$(DEPDIR)/hcell-STree.Tpo src/$(DEPDIR)/hcell-STree.Po
+#	source='src/STree.cpp' object='src/hcell-STree.obj' libtool=no \
+#	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) \
+#	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(hcell_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o src/hcell-STree.obj `if test -f 'src/STree.cpp'; then $(CYGPATH_W) 'src/STree.cpp'; else $(CYGPATH_W) '$(srcdir)/src/STree.cpp'; fi`
 
 src/hcell-tinystr.o: src/tinystr.cpp
 	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(hcell_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT src/hcell-tinystr.o -MD -MP -MF src/$(DEPDIR)/hcell-tinystr.Tpo -c -o src/hcell-tinystr.o `test -f 'src/tinystr.cpp' || echo '$(srcdir)/'`src/tinystr.cpp

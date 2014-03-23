@@ -7,7 +7,6 @@
 #include <memory>
 #include <string>
 #include "MType.h"
-#include "MAllTypes.h"
 #include "PModule.h"
 #include "utils.h"
 
@@ -31,14 +30,28 @@ class Action
  protected:
 	string _current_action;
 	vector<MType *> _realParams;
-	vector<string>  _nameParams;
-//	PModule *_myModule;
 	shared_ptr<PModule> _myModule;
 
  public:
 
 	typedef map<string,TypeT> TypesMap;
 	static TypesMap _typesmap;
+
+	Action(Action &other)
+	{
+		other._myModule = other.getModule();
+		_current_action = other.getCurrentAction();
+		copy(other.seeParameters().begin(),other.seeParameters().end(),_realParams.end());
+	}
+
+	 Action(Action *const other)
+	{
+		
+		_myModule = other->getModule();
+		_current_action = other->getCurrentAction();
+		copy(other->seeParameters().begin(),other->seeParameters().end(),_realParams.end());
+	}
+
 
 	Action(shared_ptr<PModule> mod)
 	{
@@ -62,7 +75,7 @@ class Action
 
 
 std::vector<MType *> parseParams(const char **nparams,const char **params,int countP)
-		{
+	{
 	
 		vector<MType*> myConvertedParams;
 		int nelem = countP;
@@ -73,15 +86,13 @@ std::vector<MType *> parseParams(const char **nparams,const char **params,int co
 		      s1=nparams[i];
 			  s2=params[i];
 			  myConvertedParams.push_back(GetType::fromType(_typesmap[s1],s2,s1));
-			  _nameParams.push_back(s1);
 		}
 		return myConvertedParams;
 	}
 	
 // Parameter are sorted for accessing the parameter functions in the right order
-void sortParams()
+void _sortParams()
 {
-	sort(_nameParams.begin(),_nameParams.end());
 
 #ifdef __GNUC__
 	#if GCC_VERSION > 40500  // for lambda expression
@@ -101,7 +112,7 @@ int setAction(const char *FNAME,const char **nparams,const char **params,int cou
 		 _current_action = FNAME;
 	// Doing the params interpretation and casting
 		 _realParams = parseParams(nparams,params,countP);
-		 sortParams();
+		 _sortParams();
 		return 0;
 }
 
@@ -111,21 +122,23 @@ int setAction(const char *FNAME,const char **nparams,const char **params,int cou
 void addParameter(string paramName,const char*paramValue){
 
 	MType *mp = new MStringType(paramValue,paramName);
-	this->_nameParams.push_back(paramName);
 	this->_realParams.push_back(mp);
-	sortParams();
+	_sortParams();
 }
 
 // Add new value to a existent parameter
 inline	void modifyParameterValue(string paramName,MType *newValue)
 {
 	  vector<MType *>::iterator myit;
+	  MType *old;
 	  for (vector<MType *>::iterator myit = this->_realParams.begin();
 		   myit !=this->_realParams.end(); myit++ )
 	  {
 			if((*myit)->getTag().compare(paramName)==0)
 			{
-			 (*myit)=newValue; 
+			 old =  (*myit);
+			 (*myit)=newValue;
+			 delete old;
 			 break;
 			}
 							
@@ -135,10 +148,10 @@ inline	void modifyParameterValue(string paramName,MType *newValue)
 
 /*** Getters and setters ****/
 	string getCurrentAction(){			return _current_action;}
-	vector<string>& getParameterNames(){	return _nameParams;}
 	vector<MType *>& getParameters(){	return _realParams;}
+	vector<MType *> seeParameters(){	return _realParams;}
 
-	void setParameterNames(vector<string> nameParams){	_nameParams=nameParams;}
+	shared_ptr<PModule> getModule(){ return this->_myModule; }
 	void setParameters(vector<MType *> realParams){ _realParams=realParams;}
 
 

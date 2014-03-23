@@ -1,4 +1,3 @@
 #include "PModule.h"
 
-std::vector<cv::Scalar> PModule::colorTab;
-int PModule::colorcounter;
+bool PModule::noshow = false;

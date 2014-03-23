@@ -83,7 +83,7 @@
 #define PACKAGE_NAME "hcell"
 
 /* Define to the full name and version of this package. */
-#define PACKAGE_STRING "hcell 0.5.21"
+#define PACKAGE_STRING "hcell 0.7.0"
 
 /* Define to the one symbol short name of this package. */
 #define PACKAGE_TARNAME "hcell"
@@ -92,13 +92,13 @@
 #define PACKAGE_URL "http:://hcellapp.blogspot.com/"
 
 /* Define to the version of this package. */
-#define PACKAGE_VERSION "0.5.21"
+#define PACKAGE_VERSION "0.7.0"
 
 /* Define to 1 if you have the ANSI C header files. */
 #define STDC_HEADERS 1
 
 /* Version number of package */
-#define VERSION "0.5.21"
+#define VERSION "0.7.0"
 
 /* Define to `unsigned int' if <sys/types.h> does not define. */
 /* #undef size_t */

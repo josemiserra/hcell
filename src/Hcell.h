@@ -20,10 +20,13 @@
 #include <string>
 
 struct InputValues{
-		const char *filename;
-		const char *indir;
-		const char *outdir;
+		char *filename;
+		char *indir;
+		char *outdir;
 		bool verbose_on;
+		unsigned int memory;
+		bool noshow;
+		bool brief;
 };
 
 
@@ -36,6 +39,7 @@ public:
 	int run(int argc,char *argv[]);
 protected:
     int commandPreprocess(int argc,char *argv[],InputValues *inputvalues);
+    void checkInputValues(InputValues *inputvalues);
 };
 
 

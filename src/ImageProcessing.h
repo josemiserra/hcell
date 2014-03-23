@@ -1,36 +1,19 @@
 #ifndef _IMAGE_PROCESSING_
 #define _IMAGE_PROCESSING_
 
+
 #include <math.h>
 #include "PModule.h"
 #include <opencv2/opencv.hpp>
 #include "MType.h"
-#include "MAllTypes.h"
 #include "utils.h"
 #include "proctools.h"
 #include <limits>
-
-
-#define BG 0.0
-#define FG 1.0
-
-#define THRESH_16 10
+#include "BinaryProcessor.h"
 
 using namespace cv;
 using namespace std;
-
-enum FLAGS{ THRESHFLAGS=0, ADAPT_THRESHFLAGS=50, BRUSHFLAGS= 100, MORPHFLAGS=200, CONTOURFLAGS=300, 
-			CONTOURFLAGS_2=350, SCALAR_FLAGS = 450, MAT_FLAGS = 500, MTS_FLAGS = 550 };
-
-enum SHAPE{ GAUSSIAN=25, DIAMOND=26 };
-
-enum OPS{ LAPLACIAN, SOBEL, SCHARR, CANNY};
-
-enum SCALAR_OPS{ SUM, DIFF, DIV, MULT, POWER, INV};
-
-enum MAT_OPS{ MOR, MXOR, MAND, MSUM, MDIFF, MDIV, MMULT, MMULT_P};
-
-enum MTS_OPS{ MTSSUM, MTSMEAN, MTSSD, MTSTRACE};
+using namespace ut;
 
 class ImageProcessing :
 	public PModule
@@ -41,6 +24,22 @@ public:
 	 static map<string, Function > tFunc;
 	 static map<string, int> eMap;
 	 static proctools tools;
+
+	 enum FLAGS{ THRESHFLAGS=0, ADAPT_THRESHFLAGS=50, BRUSHFLAGS= 100, MORPHFLAGS=200, CONTOURFLAGS=300, 
+			CONTOURFLAGS_2=350, SCALAR_FLAGS = 450, MAT_FLAGS = 500, MTS_FLAGS = 550, OTHERFLAGS = 600 };
+
+	enum THRESH{ THRESH_16=15,THRESH_16_INV, BERNSEN };
+	
+	enum SHAPE{ GAUSSIAN=25, DIAMOND=26 };
+
+	enum OPS{ LAPLACIAN, SOBEL, SCHARR, CANNY, BOX, MEDIAN, DESPECKLE};
+
+	enum SCALAR_OPS{ SUM, DIFF, DIV, MULT, POWER, INV, TRANSPOSE};
+
+	enum MAT_OPS{ MOR, MXOR, MAND, MSUM, MDIFF, MDIV, MMULT, MMULT_P, EYE, ZEROS, ONES};
+
+	enum MTS_OPS{ MTSSUM, MTSMEAN, MTSSD, MTSTRACE};
+
 
 	ImageProcessing(){
 
@@ -60,7 +59,8 @@ public:
 		tFunc["BLUR"]=&ImageProcessing::_blur;
 		tFunc["CREATE KERNEL"]=&ImageProcessing::_createkernel;
 		tFunc["FILTER2D"]=&ImageProcessing::_filter2D;
-		tFunc["ADAPTATIVE THRESHOLD"]=&ImageProcessing::_adaptativethreshold;
+		tFunc["ADAPTIVE THRESHOLD"]=&ImageProcessing::_adaptivethreshold;
+		tFunc["ADAPTATIVE THRESHOLD"]=&ImageProcessing::_adaptivethreshold; // TO REMOVE in future versions!!!
 		tFunc["FLOODFILL"]=&ImageProcessing::_floodfill;
 		tFunc["SCALAR OPERATION"]=&ImageProcessing::_scalarOp;
 		tFunc["MATRIX OPERATION"]=&ImageProcessing::_matOp;
@@ -72,13 +72,17 @@ public:
 		///---- FLAGS MAP----///
 		/**THRESHOLDING**/
 		eMap["THRESH_BINARY"]=THRESH_BINARY+FLAGS::THRESHFLAGS;
+		eMap["BINARY"]=THRESH_BINARY+FLAGS::THRESHFLAGS;
 		eMap["THRESH_TRUNC"]=THRESH_TRUNC+FLAGS::THRESHFLAGS;
 		eMap["THRESH_BINARY_INV"]=THRESH_BINARY_INV+FLAGS::THRESHFLAGS;
+		eMap["BINARY_INV"]=THRESH_BINARY_INV+FLAGS::THRESHFLAGS;
 		eMap["THRESH_TOZERO"]=THRESH_TOZERO+FLAGS::THRESHFLAGS;
 		eMap["THRESH_TOZERO_INV"]=THRESH_TOZERO_INV+FLAGS::THRESHFLAGS;
 		eMap["THRESH_OTSU"]=THRESH_OTSU+FLAGS::THRESHFLAGS;
-		eMap["THRESH_BINARY_16"]=THRESH_16+FLAGS::THRESHFLAGS;
-
+		eMap["THRESH_16"]=THRESH_16+FLAGS::THRESHFLAGS;
+		eMap["THRESH_16_INV"]=THRESH_16_INV+FLAGS::THRESHFLAGS;
+		eMap["BINARY_16"]=THRESH_16+FLAGS::THRESHFLAGS;
+		eMap["BERNSEN"]= BERNSEN+FLAGS::THRESHFLAGS;
 		/***MAKE BRUSH***/
 		eMap["BOX_SHAPE"]=MORPH_RECT+FLAGS::BRUSHFLAGS;
 		eMap["CROSS_SHAPE"]=MORPH_CROSS+FLAGS::BRUSHFLAGS;
@@ -115,6 +119,7 @@ public:
 		eMap["MULT"] = SCALAR_FLAGS + MULT;
 		eMap["POWER"] = SCALAR_FLAGS + POWER;
 		eMap["INV"] = SCALAR_FLAGS + INV;
+		eMap["TRANSPOSE"] = SCALAR_FLAGS + TRANSPOSE;
 
 	    eMap["MOR"] = MAT_FLAGS + MOR;
 		eMap["MXOR"] = MAT_FLAGS + MXOR;
@@ -130,6 +135,17 @@ public:
 		eMap["MTSSD"] = MTS_FLAGS + MTSSD;
 		eMap["MTSTRACE"] = MTS_FLAGS + MTSTRACE;
 
+		eMap["SOBEL"]=OPS::SOBEL;
+		eMap["SCHARR"]=OPS::SCHARR;
+		eMap["BOX"]= OPS::BOX;
+		eMap["MEDIAN"]= OPS::MEDIAN;
+		eMap["DESPECKLE"]= OPS::DESPECKLE;
+
+		eMap["EYE"] = MAT_OPS::EYE;
+		eMap["ONES"] = MAT_OPS::ONES;
+		eMap["ZEROS"] = MAT_OPS::ZEROS;
+
+		eMap["DEFAULT_COLOR_SEED"] = FLAGS::OTHERFLAGS;
 	};
 	~ImageProcessing(void){};
 	
@@ -158,18 +174,16 @@ void _threshold(std::vector<MType *> parValues, unsigned int pid)
 	 
 	 bool a0 =  (dynamic_cast<MBoolType*>(parValues[0]))->getValue(); // showImage (ASHOW)
 	 int ttype;
+	
 
-	 string input	= (dynamic_cast<MStringType*>(parValues[1]))->getValue(); // imageName
-     double max_thresh	= (dynamic_cast<MDoubleType*>(parValues[2]))->getValue();  // maximum value for threshold
-     string output	= (dynamic_cast<MStringType*>(parValues[3]))->getValue(); //output
-	 double thresh	= (dynamic_cast<MDoubleType*>(parValues[4]))->getValue();  //  value for threshold
+	 string input	= (dynamic_cast<MIdentifierType*>(parValues[1]))->getValue(pid); // imageName
+     double max_thresh	= (dynamic_cast<MDoubleType*>(parValues[2]))->getValue(pid);  // maximum value for threshold
+     MIdentifierType* out = dynamic_cast<MIdentifierType*>(parValues[3]);
+	 string output	= out->getValue(pid); //output
+	 double thresh	= (dynamic_cast<MDoubleType*>(parValues[4]))->getValue(pid);  //  value for threshold
 	 string thresh_type = (dynamic_cast<MStringType*>(parValues[5]))->getValue(); // type of threshold
 	 const char* wName	= (dynamic_cast<MStringType*>(parValues[6]))->getValue(); // windowName
 	 ttype = eMap[thresh_type];
-
-	 this->combnames(input,pid,input);
-	 this->combnames(output,pid,output);
-
 
 	 if((max_thresh!=255 ))
 	 {
@@ -184,6 +198,9 @@ void _threshold(std::vector<MType *> parValues, unsigned int pid)
 		 Mat *timg=pool->getImage(output.c_str());
 		 this->display(*timg,wName);
 	  }
+
+	  // refresh outputs
+	  out->refresh(pid);
 	}
  
 
@@ -212,15 +229,7 @@ int __threshold(const char* input,const char* output, double threshold_value, in
 	}
 	if((img->type() != CV_8U))
 	{
-		// Normalize between 0 and 1
-		double minVal, maxVal;
-		minMaxLoc(image, &minVal, &maxVal); 
-	  if(maxVal>1.0)
-	  {	
-		image.convertTo(image,CV_32FC1,1/maxVal,0.0);	
-	  }
-	  else
-		  if(image.type()!=CV_32FC1) image.convertTo(image,CV_32FC1);
+		image.convertTo(image,CV_32FC1);	
 	}
 	else
 	{
@@ -231,11 +240,16 @@ int __threshold(const char* input,const char* output, double threshold_value, in
 		}
 	}
 
-	tr.printMatrixInfo("Thresholded image info:",image);
+	tr.printMatrixInfo("Threshold Input image info:",image);
 	
 	if(threshold_type == cv::THRESH_OTSU)
 	{
-	    image.convertTo(image,CV_8U,255,0);
+	    if(image.type()!=CV_8U)
+		{
+				 double min;double max;
+				 minMaxIdx(image, &min, &max);
+				 image.convertTo(image,CV_8UC1,255.0/(max - min), -min * 255.0/(max - min));
+		}
 		max_BINARY_value = 255;
 		threshold_value = -1;
 	}
@@ -246,7 +260,7 @@ int __threshold(const char* input,const char* output, double threshold_value, in
 	catch( cv::Exception& e )
 	{
 	    
-		tr.message("Thresholding boundaries are not correct.\n E.g.:Range between  0-255 for 8 bit images and 0-1 for others.");
+		tr.message("Thresholding boundaries are not correct.\n E.g.:Range between  0-255 for 8 bit, 0-65535 for 16 bit images or between 0-1 if normalized.");
 		#ifdef _MY_DEBUG_	
 			tr.message("Error :",e.what());
 		#endif
@@ -265,17 +279,18 @@ int __threshold(const char* input,const char* output, double threshold_value, in
  *
  ***************************************************************************/
 
-void _adaptativethreshold(std::vector<MType *> parValues, unsigned int pid){
+void _adaptivethreshold(std::vector<MType *> parValues, unsigned int pid){
 	
 	 ut::Trace tr=ut::Trace("Adaptative Thresholding",__FILE__);
 	 int ttype, method;
 
 	 bool a0 =  (dynamic_cast<MBoolType*>(parValues[0]))->getValue(); // showImage (ASHOW)
-	 int blockSize	= (dynamic_cast<MIntType*>(parValues[1]))->getValue();  //
-	 double constant	= (dynamic_cast<MDoubleType*>(parValues[2]))->getValue();  // 
-	 string input	= (dynamic_cast<MStringType*>(parValues[3]))->getValue(); // imageName
+	 int blockSize	= (dynamic_cast<MIntType*>(parValues[1]))->getValue(pid);  //
+	 double constant	= (dynamic_cast<MDoubleType*>(parValues[2]))->getValue(pid);  // 
+	 string input	= (dynamic_cast<MIdentifierType*>(parValues[3]))->getValue(pid); // imageName
      string method_type = (dynamic_cast<MStringType*>(parValues[4]))->getValue(); // type of method
-	 string output	= (dynamic_cast<MStringType*>(parValues[5]))->getValue(); //output
+	 MIdentifierType* out = dynamic_cast<MIdentifierType*>(parValues[5]);
+	 string output	= out->getValue(pid); //output
      
 	
 	 string thresh_type = (dynamic_cast<MStringType*>(parValues[6]))->getValue(); // type of threshold
@@ -285,27 +300,18 @@ void _adaptativethreshold(std::vector<MType *> parValues, unsigned int pid){
 	 
 	 ttype = eMap[thresh_type]-FLAGS::THRESHFLAGS;
 	 method = eMap[method_type]-FLAGS::ADAPT_THRESHFLAGS;
-
-
-
-
-	 this->combnames(input,pid,input);
-	 this->combnames(output,pid,output);
-
-	 if(ttype>1  && ttype<THRESH_16){
-		 tr.message("In adaptative thresholding only THRESH_BINARY, THRESH_BINARY_16 or THRESH_BINARY_INV are allowed. \n");
-		 exit(-1922);			
-	 }
 		
-	 __adaptativethreshold(input.c_str(),output.c_str(), method, ttype,blockSize,constant);
+	 __adaptivethreshold(input.c_str(),output.c_str(), method, ttype,blockSize,constant);
 
 	  if(a0){
 		 this->display(output,wName);
 	  }
+
+	  out->refresh(pid);
 	}
  
 
-int __adaptativethreshold(const char* input,const char* output,int &adaptativeMethod, int &threshold_type,int &blockSize,double &cval,double maxValue=255.0){  
+int __adaptivethreshold(const char* input,const char* output,int &adaptativeMethod, int &threshold_type,int &blockSize,double &cval,double maxValue=255.0){  
 
 	ut::Trace tr=ut::Trace("__Adaptative Thresholding",__FILE__);
 
@@ -328,115 +334,39 @@ int __adaptativethreshold(const char* input,const char* output,int &adaptativeMe
 	 tr.printMatrixInfo("Initial image info:",*img);
 	 tr.printMatrixInfo("Thresholded image info:",image);
 
-	if(threshold_type==THRESH_16)
-	{
-	    
-		switch(image.type())
-		{
-		case(CV_32F): 
-					image.convertTo(image,CV_64FC1); 
-			        thresh<double>(image,thresholded,blockSize,blockSize,cval);
-					break;
-		case(CV_16U):
-					image.convertTo(image,CV_32FC1,65535.0,0.0); 
-					thresh<float>(image,thresholded,blockSize,blockSize,cval);
-					break;
+	 switch(threshold_type)
+	 {
+		case(THRESH_16):
+			{				 
+					  Adaptive myThresholder(blockSize,blockSize,cval);
+					  myThresholder.run(image,thresholded);				 
+					  break;
+			}
+       case(THRESH_16_INV):
+			{				 
+					  Adaptive myThresholder(blockSize,blockSize,cval);
+					  myThresholder.run(image,thresholded);		
+					  thresholded = cv::abs(Scalar::all(1) - thresholded);
+					  break;
+			}
+
+		case(BERNSEN):
+			{
+			   		  Bernsen myThresholder(blockSize,cval);
+					  myThresholder.run(image,thresholded);	
+					  break;
+			}
 		default:
-					image.convertTo(image,CV_32FC1,255.0,0); 
-			        thresh<float>(image,thresholded,blockSize,blockSize,cval);
-		
-		}
-	}
-	else
-	{
-		if(image.type()!=CV_8UC1) image.convertTo(image,CV_8UC1,255,0);
-		// C++: void adaptiveThreshold(InputArray src, OutputArray dst, double maxValue, int adaptiveMethod, int thresholdType, int blockSize, double C)
-		 cv::adaptiveThreshold( image, thresholded, maxValue,adaptativeMethod, threshold_type, blockSize, cval);
-	}
+			{
+			if(image.type()!=CV_8UC1) image.convertTo(image,CV_8UC1,255,0);
+			// C++: void adaptiveThreshold(InputArray src, OutputArray dst, double maxValue, int adaptiveMethod, int thresholdType, int blockSize, double C)
+			cv::adaptiveThreshold( image, thresholded, maxValue,adaptativeMethod, threshold_type, blockSize, cval);
+			}
+	 }
 	thresholded.convertTo(thresholded,CV_8UC1,255,0);
 	pool->storeImage(thresholded,output);
 	return 0;
 }
-
-
-
- template <typename mydata> 
- static void thresh(Mat &x, Mat &thresholded, int &dx, int &dy, double &offset)
- {
- 
- 
-	int  xi, yi, u, v;
-    int sx, ex, sy, ey;
-	double sum, mean, nFramePix;
-    
-	x.copyTo(thresholded);
-
-	int nx = x.rows;
-    int ny = x.cols;
-
-    nFramePix = (2 * dx + 1) * (2 * dy + 1);
-	
-	
-    for ( yi = dy; yi < ny - dy; yi++ ) {
-            sum = 0.0;
-            for ( xi = dx; xi < nx - dx; xi++ ) {
-                if ( xi == dx) {
-                /* first position in a row -- collect new sum */
-                    for ( u = xi - dx; u <= xi + dx; u++ )
-                        for ( v = yi - dy; v <= yi + dy; v++ )
-							   sum += x.at<mydata>(v,u);
-						        // sum += *(src+(u + v * nx));
-                }
-                else {
-                /* frame moved in the row, modify sum */
-                    for ( v = yi - dy; v <= yi + dy; v++ )
-							 //  sum += src [xi + dx + v * nx] - src [ xi - dx - 1 + v * nx];
-							 sum += x.at<mydata>(v,xi+dx) - x.at<mydata>(v,xi-dx-1);
-                }
-               
-				/* calculate threshold and update tgt data */
-                mean = (sum / (1.0*nFramePix) )+ offset;
-                sx = xi;
-                ex = xi;
-                sy = yi;
-                ey = yi;
-                if ( xi == dx ) {
-                    /* left */
-                    sx = 0.0;
-                    ex = dx;
-                }
-                else
-                if ( xi == nx - dx - 1 ) {
-                    /* right */
-                    sx = nx - dx - 1;
-                    ex = nx - 1;
-                }
-                if ( yi == dy ) {
-                    /* top */
-                    sy = 0.0;
-                    ey = dy;
-                }
-                else
-                if ( yi == ny - dy - 1 ) {
-                    /* bottom */
-                    sy = ny - dy - 1;
-                    ey = ny - 1;
-                }
-                if ( ex - sx > 0 || ey - sy > 0 ) {
-                    for ( u = sx; u <= ex; u++ )
-                        for ( v = sy; v <= ey; v++ )
-						     thresholded.at<mydata>(v,u) =  ( x.at<mydata>(v,u)< mean ) ? BG : FG;
-                }
-                else /* thresh current pixel only */
-				   thresholded.at<mydata>(yi,xi) =  ( x.at<mydata>(yi,xi)< mean ) ? BG : FG;
-            }
-        }
-    
-    return;
- 
- 
- }
-
 
 /*****MORPHOLOGICAL OPERATORS************************************************/
 /****************************************************************************
@@ -451,13 +381,11 @@ void _erode(std::vector<MType *> parValues, unsigned int pid){
 	 bool a0 =  (dynamic_cast<MBoolType*>(parValues[0]))->getValue(); // showImage (ASHOW)
 
 	 const char* brush_name	= (dynamic_cast<MStringType*>(parValues[1]))->getValue(); // brushName
-     string input	= (dynamic_cast<MStringType*>(parValues[2]))->getValue(); // input image
-	 int iter = (dynamic_cast<MIntType*>(parValues[3]))->getValue(); 
-	 string output	= (dynamic_cast<MStringType*>(parValues[4]))->getValue();  // output name
+     string input	= (dynamic_cast<MIdentifierType*>(parValues[2]))->getValue(pid); // input image
+	 int iter = (dynamic_cast<MIntType*>(parValues[3]))->getValue(pid); 
+	 MIdentifierType* out = dynamic_cast<MIdentifierType*>(parValues[4]);
+	 string output	= out->getValue(pid);  // output name
 	 const char* wName	= (dynamic_cast<MStringType*>(parValues[5]))->getValue(); // windows name
-
-	 this->combnames(input,pid,input);
-	 this->combnames(output,pid,output);
 
 	 this->__erode(input.c_str(),output.c_str(),brush_name,iter);
 
@@ -467,6 +395,7 @@ void _erode(std::vector<MType *> parValues, unsigned int pid){
 
 	  }
 
+	  out->refresh(pid);
 };
 
 int __erode(const char* input,const char* output,const char* strc_element,int iter){
@@ -491,26 +420,23 @@ int __erode(const char* input,const char* output,const char* strc_element,int it
 void _dilate(std::vector<MType *> parValues, unsigned int pid)
 {
 
- bool a0 =  (dynamic_cast<MBoolType*>(parValues[0]))->getValue(); // showImage (ASHOW)
-
+	 bool a0 =  (dynamic_cast<MBoolType*>(parValues[0]))->getValue(); // showImage (ASHOW)
 	 const char* brush_name	= (dynamic_cast<MStringType*>(parValues[1]))->getValue(); // brushName
-     string input	= (dynamic_cast<MStringType*>(parValues[2]))->getValue(); // input image
-	 int iter = (dynamic_cast<MIntType*>(parValues[3]))->getValue();  
-	 string output	= (dynamic_cast<MStringType*>(parValues[4]))->getValue();  // output name
+     string input	= (dynamic_cast<MIdentifierType*>(parValues[2]))->getValue(pid); // input image
+	 int iter = (dynamic_cast<MIntType*>(parValues[3]))->getValue(pid);  
+	 MIdentifierType* out = dynamic_cast<MIdentifierType*>(parValues[4]);
+	 string output	= out->getValue(pid);  // output name
 	 string wName	= (dynamic_cast<MStringType*>(parValues[5]))->getValue(); // windows name
-
-
-	 this->combnames(input,pid,input);
-	 this->combnames(output,pid,output);
-
 
 	 this->__dilate(input.c_str(),output.c_str(),brush_name,iter);
 
-	  if(a0){
+	  if(a0)
+	  {
 
 		 this->display(output,wName);
 	  }
 
+	  out->refresh(pid);
 }
 
 
@@ -539,24 +465,23 @@ void _morphOp(std::vector<MType *> parValues, unsigned int pid)
 
      bool a0 =  (dynamic_cast<MBoolType*>(parValues[0]))->getValue(); // showImage (ASHOW)
 
-	 const char* brush_name	= (dynamic_cast<MStringType*>(parValues[1]))->getValue(); // brushName
-     string input	= (dynamic_cast<MStringType*>(parValues[2]))->getValue(); // input image
-	  int iter = (dynamic_cast<MIntType*>(parValues[3]))->getValue(); 
+	 string brush_name	= (dynamic_cast<MIdentifierType*>(parValues[1]))->getValueAsString(); // brushName
+     string input	= (dynamic_cast<MIdentifierType*>(parValues[2]))->getValue(pid); // input image
+	  int iter = (dynamic_cast<MIntType*>(parValues[3]))->getValue(pid); 
 	 string soperation = (dynamic_cast<MStringType*>(parValues[4]))->getValue(); // operation type
-	 string output	= (dynamic_cast<MStringType*>(parValues[5]))->getValue();  // output name
+	 MIdentifierType* out = dynamic_cast<MIdentifierType*>(parValues[5]);
+	 string output	= out->getValue(pid);  // output name
+	 
 	 const char* wName	= (dynamic_cast<MStringType*>(parValues[6]))->getValue(); // windows name
 
-	 this->combnames(input,pid,input);
-	 this->combnames(output,pid,output);
-
-
 	 int operation = eMap[soperation];
-	 this->__morphOp(input.c_str(),output.c_str(),brush_name,operation,iter);
+	 this->__morphOp(input.c_str(),output.c_str(),brush_name.c_str(),operation,iter);
 
 	  if(a0){
 		 this->display(output,wName);
 	  }
 
+	  out->refresh(pid);
 }
 /*
 Opening: MORPH_OPEN : 2
@@ -599,15 +524,13 @@ void _boundary_extraction(std::vector<MType *> parValues, unsigned int pid)
      
 	bool a0 =  (dynamic_cast<MBoolType*>(parValues[0]))->getValue(); // showImage (ASHOW)
      const char* colour = (dynamic_cast<MStringType*>(parValues[1]))->getValue(); // colour
-	 string input	= (dynamic_cast<MStringType*>(parValues[2]))->getValue(); // input image
-	 string output	= (dynamic_cast<MStringType*>(parValues[3]))->getValue();  // output name
-	 int thickness	= (dynamic_cast<MIntType*>(parValues[4]))->getValue();  //line thickness of contour
+	 string input	= (dynamic_cast<MIdentifierType*>(parValues[2]))->getValue(pid); // input image
+	 MIdentifierType* out = dynamic_cast<MIdentifierType*>(parValues[3]);
+	 string output	= out->getValue(pid);  // output name
+	 int thickness	= (dynamic_cast<MIntType*>(parValues[4]))->getValue(pid);  //line thickness of contour
 	 const char* wName	= (dynamic_cast<MStringType*>(parValues[5]))->getValue(); // windows name
 
-	 this->combnames(input,pid,input);
-	 this->combnames(output,pid,output);
-
-	 Scalar *color = toColor(colour); 
+	 Scalar *color = utils::toColor(colour); 
 
 	 this->__boundary_extraction(input.c_str(),output.c_str(),thickness,*color);
 
@@ -615,6 +538,7 @@ void _boundary_extraction(std::vector<MType *> parValues, unsigned int pid)
 		 this->display(output,wName);
 	  }
 	  delete color;
+	  out->refresh(pid);
 
 };
 
@@ -633,17 +557,26 @@ void __boundary_extraction(const char* input, const char* output, int thickness,
 
 	Mat mat;
 
-	cvtColor(dst,mat,CV_GRAY2BGR);
-
-	Mat3b mat1 = mat;
+	if((colour[0]!=255 && colour[1]!=255 && colour[2]!=255)||(colour[0]!=65536 && colour[1]!=65536 && colour[2]!=65536))
+	{
 	
-	 mat1=255*mat1;
-	for (Mat3b::iterator it = mat1.begin(); it != mat1.end(); it++) {
-    if (*it == Vec3b(255, 255, 255)) {
-        *it = Vec3b(colour[0], colour[1], colour[2]);
-	   }
+		cvtColor(dst,mat,CV_GRAY2BGR);
+		Mat3b mat1 = mat;
+	
+		mat1=255*mat1;
+		for (Mat3b::iterator it = mat1.begin(); it != mat1.end(); it++)
+		{
+			if (*it == Vec3b(255, 255, 255))  // If it´s white, substitute by colour values
+			{
+			*it = Vec3b(colour[0], colour[1], colour[2]);
+			}
+		}
+		mat=mat1;
 	}
-	mat=mat1;
+	else
+	{
+	  mat = dst;	
+	}
 	pool->storeImage(mat,output);
 
 }
@@ -663,15 +596,11 @@ void _fillHull(std::vector<MType *> parValues, unsigned int pid)
      bool show =  (dynamic_cast<MBoolType*>(parValues[0]))->getValue(); // showImage (ASHOW)
 
 	 
-     string input	= (dynamic_cast<MStringType*>(parValues[1]))->getValue(); // input image
-	 string output	= (dynamic_cast<MStringType*>(parValues[2]))->getValue();  // output name
-	
+     string input	= (dynamic_cast<MIdentifierType*>(parValues[1]))->getValue(pid); // input image
+	 MIdentifierType* out = dynamic_cast<MIdentifierType*>(parValues[2]);
+	 string output	= out->getValue(pid);  // output name	
 
 	 const char* wName	= (dynamic_cast<MStringType*>(parValues[3]))->getValue(); // windows name
-
-	 
-	 this->combnames(input,pid,input);
-	 this->combnames(output,pid,output);
 
 	 this->__fillHull(input.c_str(),output.c_str(),wName,show);
 
@@ -679,6 +608,8 @@ void _fillHull(std::vector<MType *> parValues, unsigned int pid)
 		 this->displayTo8C1(output.c_str(),wName);
 
 	  }
+
+	 out->refresh(pid);
 
 }
 
@@ -722,16 +653,17 @@ void _makeBrush(std::vector<MType *> parValues, unsigned int pid)
 {
 
 	
-	 const char* output	= (dynamic_cast<MStringType*>(parValues[4]))->getValue(); //output
-	 if(pool->containsImage(output))
-								return;
+	 MIdentifierType* out = dynamic_cast<MIdentifierType*>(parValues[4]);
+	 string output	= out->getValueAsString(); //output
+	 if(pool->containsImage(output.c_str()))
+								return;  // Dont create twice the brush if already exists
 
 	
 	 bool a0 =  (dynamic_cast<MBoolType*>(parValues[0]))->getValue(); // showImage (ASHOW)
-	 int brush_size_x	= (dynamic_cast<MIntType*>(parValues[1]))->getValue();  // brush_size_x or brush_size
-	 int brush_size_y	= (dynamic_cast<MIntType*>(parValues[2]))->getValue();  // brush_size_y
+	 int brush_size_x	= (dynamic_cast<MIntType*>(parValues[1]))->getValue(pid);  // brush_size_x or brush_size
+	 int brush_size_y	= (dynamic_cast<MIntType*>(parValues[2]))->getValue(pid);  // brush_size_y
 	 string brush_type = (dynamic_cast<MStringType*>(parValues[3]))->getValue(); // brush shape
-	 double sigma	= (dynamic_cast<MDoubleType*>(parValues[5]))->getValue();  // sigma
+	 double sigma	= (dynamic_cast<MDoubleType*>(parValues[5]))->getValue(pid);  // sigma
 	 const char* wName	= (dynamic_cast<MStringType*>(parValues[6]))->getValue(); // windowName
 	
 	
@@ -739,13 +671,13 @@ void _makeBrush(std::vector<MType *> parValues, unsigned int pid)
 	 btype = eMap[brush_type];
 	 btype -= FLAGS::BRUSHFLAGS;
 
-	 __makeBrush(btype,brush_size_x,brush_size_y,output,(float)sigma);
+	 __makeBrush(btype,brush_size_x,brush_size_y,output.c_str(),(float)sigma);
 
 	  if(a0){
 	
 		 this->display(output,wName,brush_size_x,brush_size_y);
 	  }
-
+	  out->refresh(pid);
 }
 
 
@@ -801,18 +733,15 @@ void _sobel(std::vector<MType *> parValues, unsigned int pid)
 
 	 bool a0 =  (dynamic_cast<MBoolType*>(parValues[0]))->getValue(); // showImage (ASHOW)
 
-	 string input	= (dynamic_cast<MStringType*>(parValues[1]))->getValue(); // input image
+	 string input	= (dynamic_cast<MIdentifierType*>(parValues[1]))->getValue(pid); // input image
 	 string operation	= (dynamic_cast<MStringType*>(parValues[2]))->getValue();  // output name
-	 string output	= (dynamic_cast<MStringType*>(parValues[3]))->getValue();  // output name
+	 MIdentifierType* out = dynamic_cast<MIdentifierType*>(parValues[3]);
+	 string output	= out->getValue(pid);  // output name
 	 
-	 int size	= (dynamic_cast<MIntType*>(parValues[4]))->getValue();  // 1,3,5,7
+	 int size	= (dynamic_cast<MIntType*>(parValues[4]))->getValue(pid);  // 1,3,5,7
 	 const char* wName	= (dynamic_cast<MStringType*>(parValues[5]))->getValue(); // windows name
-	 int dx	= (dynamic_cast<MIntType*>(parValues[6]))->getValue();  // 
-	 int dy	= (dynamic_cast<MIntType*>(parValues[7]))->getValue();  // 
-
-
-	 this->combnames(input,pid,input);
-	 this->combnames(output,pid,output);
+	 int dx	= (dynamic_cast<MIntType*>(parValues[6]))->getValue(pid);  // 
+	 int dy	= (dynamic_cast<MIntType*>(parValues[7]))->getValue(pid);  // 
 
 	 this->__sobel(input.c_str(),output.c_str(),operation,dx,dy,size);
 
@@ -825,38 +754,37 @@ void _sobel(std::vector<MType *> parValues, unsigned int pid)
 		  (*timg).convertTo(st,CV_8UC3,255.0/(maxVal - minVal), -minVal * 255.0/(maxVal - minVal));
 		  this->display(st,wName);
 	  }
-
+	  out->refresh(pid);
 };
 
 int __sobel(const char* input,const char* output,string operation, int dx=1,int dy=1, int size=3){
-	
-	
-	Mat *src_gray;
-	
+		
+	Mat *src_gray;	
 	src_gray = pool->getImage(input);
-	
-	/// Generate grad_x and grad_y
-	Mat grad_x, grad_y;
+	Mat grad,grad_x,grad_y;
 	Mat abs_grad_x, abs_grad_y;
-	Mat grad;
-	
-
-	if(operation.compare("SCHARR")==0) {
-					Scharr( *src_gray, grad_x, (*src_gray).depth(), dx, 0, 1, 0, BORDER_DEFAULT );  /// Gradient X
-					Scharr( *src_gray, grad_y, (*src_gray).depth(), 0, dy, 1, 0, BORDER_DEFAULT );  // Gradient Y
-			}
-			else{		
-
-			//	 void Sobel(InputArray src, OutputArray dst, int ddepth, int dx, int dy, int ksize=3, double scale=1, double delta=0, int borderType=BORDER_DEFAULT )
-					Sobel( *src_gray, grad_x, (*src_gray).depth(), dx, 0, size );
-					Sobel( *src_gray, grad_y, (*src_gray).depth(), 0, dy, size );
-			}
-								
-  convertScaleAbs( grad_x, abs_grad_x );
-  convertScaleAbs( grad_y, abs_grad_y );
-  /// Total Gradient (approximate)
-  addWeighted( abs_grad_x, 0.5, abs_grad_y, 0.5, 0, grad );
-
+	if(operation.compare("SCHARR")==0) 
+	{
+	   /// Gradient X
+	   Scharr( *src_gray, grad_x, CV_16S, 1, 0, 1, 0, BORDER_DEFAULT );
+       convertScaleAbs( grad_x, abs_grad_x);
+		/// Gradient Y
+	    Scharr( *src_gray, grad_y, CV_16S, 0, 1, 1, 0, BORDER_DEFAULT );
+		convertScaleAbs( grad_y, abs_grad_y );
+		 /// Total Gradient (approximate)
+        addWeighted( abs_grad_x, 0.5, abs_grad_y, 0.5, 0, grad );
+	}
+	else{		
+		//	 void Sobel(InputArray src, OutputArray dst, int ddepth, int dx, int dy, int ksize=3, double scale=1, double delta=0, int borderType=BORDER_DEFAULT )
+			   /// Gradient X
+	   Sobel( *src_gray, grad_x, CV_16S, dx, 0, 1, size, 0, BORDER_DEFAULT );
+       convertScaleAbs( grad_x, abs_grad_x);
+		/// Gradient Y
+	    Sobel( *src_gray, grad_y, CV_16S, 0, dy, 1, size, 0, BORDER_DEFAULT );
+		convertScaleAbs( grad_y, abs_grad_y );
+		 /// Total Gradient (approximate)
+        addWeighted( abs_grad_x, 0.5, abs_grad_y, 0.5, 0, grad );
+		}
 	pool->storeImage(grad,output);
 	return 0;
 };
@@ -864,31 +792,30 @@ int __sobel(const char* input,const char* output,string operation, int dx=1,int 
 /****************************************************************************
  * CANNY
  * ----------------------------
- *  
+ *  See manual for further instructions
  *
  ***************************************************************************/
 void _canny(std::vector<MType *> parValues, unsigned int pid)
 {
 
 	 bool a0 =  (dynamic_cast<MBoolType*>(parValues[0]))->getValue(); // showImage (ASHOW)
-	 double ht	= (dynamic_cast<MDoubleType*>(parValues[1]))->getValue();  // high threshold
-	 string input	= (dynamic_cast<MStringType*>(parValues[2]))->getValue(); // input image
-	 int ksize = (dynamic_cast<MIntType*>(parValues[3]))->getValue();  // kernel size
+	 double ht	= (dynamic_cast<MDoubleType*>(parValues[1]))->getValue(pid);  // high threshold
+	 string input	= (dynamic_cast<MIdentifierType*>(parValues[2]))->getValue(pid); // input image
+	 int ksize = (dynamic_cast<MIntType*>(parValues[3]))->getValue(pid);  // kernel size
 	 bool l2gradient =  (dynamic_cast<MBoolType*>(parValues[4]))->getValue(); //l2 gradient	
-	 double lt	= (dynamic_cast<MDoubleType*>(parValues[5]))->getValue();  // low threshold
-	 string output	= (dynamic_cast<MStringType*>(parValues[6]))->getValue();  // output name
+	 double lt	= (dynamic_cast<MDoubleType*>(parValues[5]))->getValue(pid);  // low threshold
+	 MIdentifierType* out = dynamic_cast<MIdentifierType*>(parValues[6]);
+	 string output	= out->getValue(pid);  // output name
 	
 	 const char* wName	= (dynamic_cast<MStringType*>(parValues[7]))->getValue(); // windows name
 
-	 this->combnames(input,pid,input);
-	 this->combnames(output,pid,output);
-	 
 	 this->__canny(input.c_str(),output.c_str(),lt,ht,ksize,l2gradient);
 
-  if(a0){
+	if(a0)
+	{
 		 display(output,wName);
-	  }
-	  
+	}
+    out->refresh(pid);	  
 }
 
 int __canny(const char* input,const char* output, double lt,double ht, int apsize,bool L2g = false){
@@ -898,11 +825,11 @@ int __canny(const char* input,const char* output, double lt,double ht, int apsiz
 	Mat detected_edges;
 	src_gray = pool->getImage(input);
 
-	 double minVal, maxVal;
-	 minMaxLoc(*src_gray, &minVal, &maxVal); 
-	 (*src_gray).copyTo(detected_edges);
+	double minVal, maxVal;
+	minMaxLoc(*src_gray, &minVal, &maxVal); 
+	(*src_gray).copyTo(detected_edges);
 
-	 detected_edges.convertTo(detected_edges,CV_8UC1,255.0/(maxVal - minVal), -minVal * 255.0/(maxVal - minVal));
+	detected_edges.convertTo(detected_edges,CV_8UC1,255.0/(maxVal - minVal), -minVal * 255.0/(maxVal - minVal));
 	 /// Canny detector
 	// void Canny(InputArray image, OutputArray edges, double threshold1, double threshold2, int apertureSize=3, bool L2gradient=false )
      Canny(detected_edges, detected_edges, lt, ht,apsize,L2g);
@@ -920,20 +847,19 @@ void _laplace(std::vector<MType *> parValues, unsigned int pid)
 {
 	
 	 bool a0 =  (dynamic_cast<MBoolType*>(parValues[0]))->getValue(); // showImage (ASHOW)
-	 string input	= (dynamic_cast<MStringType*>(parValues[1]))->getValue(); // input image
-	 int ksize = (dynamic_cast<MIntType*>(parValues[2]))->getValue();  // kernel size
-	 string output	= (dynamic_cast<MStringType*>(parValues[3]))->getValue();  // output name
+	 string input	= (dynamic_cast<MIdentifierType*>(parValues[1]))->getValue(pid); // input image
+	 int ksize = (dynamic_cast<MIntType*>(parValues[2]))->getValue(pid);  // kernel size
+	 MIdentifierType* out = dynamic_cast<MIdentifierType*>(parValues[3]);
+	 string output	= out->getValue(pid);  // output name
 	 const char* wName	= (dynamic_cast<MStringType*>(parValues[4]))->getValue(); // windows name
-
-	 this->combnames(input,pid,input);
-	 this->combnames(output,pid,output);
 
 	 this->__laplace(input.c_str(),output.c_str(),ksize);
 
-  if(a0){
-		  
-	  this->displayTo8C1(output.c_str(),wName);
-	  }
+	if(a0)
+	{
+	 this->displayTo8C1(output.c_str(),wName);
+	}
+	out->refresh(pid);
 
 }
 
@@ -963,20 +889,18 @@ void _gblur(std::vector<MType *> parValues, unsigned int pid)
 
 	 bool a0 =  (dynamic_cast<MBoolType*>(parValues[0]))->getValue(); // showImage (ASHOW)
 
-	 int height = (dynamic_cast<MIntType*>(parValues[1]))->getValue(); // height
+	 int height = (dynamic_cast<MIntType*>(parValues[1]))->getValue(pid); // height
      
-	 string input	= (dynamic_cast<MStringType*>(parValues[2]))->getValue(); // input image
-	 string output	= (dynamic_cast<MStringType*>(parValues[3]))->getValue();  // output name
+	 string input	= (dynamic_cast<MIdentifierType*>(parValues[2]))->getValue(pid); // input image
+	 MIdentifierType* out = dynamic_cast<MIdentifierType*>(parValues[3]);
+	 string output	= out->getValue(pid);  // output name
 	 
-	 int sigma_x = (dynamic_cast<MIntType*>(parValues[4]))->getValue(); // sx
-	 int sigma_y = (dynamic_cast<MIntType*>(parValues[5]))->getValue(); // sy
+	 double sigma_x = (dynamic_cast<MDoubleType*>(parValues[4]))->getValue(pid); // sx
+	 double sigma_y = (dynamic_cast<MDoubleType*>(parValues[5]))->getValue(pid); // sy
 	
-	 int width = (dynamic_cast<MIntType*>(parValues[6]))->getValue(); // width
+	 int width = (dynamic_cast<MIntType*>(parValues[6]))->getValue(pid); // width
 	 string wName	= (dynamic_cast<MStringType*>(parValues[7]))->getValue(); // windows name
 
-
-	 this->combnames(input,pid,input);
-	 this->combnames(output,pid,output);
 
 	 __gblur(input.c_str(),output.c_str(),width,height,sigma_x,sigma_y);
 
@@ -984,6 +908,7 @@ void _gblur(std::vector<MType *> parValues, unsigned int pid)
 		  display(output,wName);
 	  }
 
+	  out->refresh(pid);
 }
 
 int __gblur(const char* input, const char* output, int width, int height, double sigma_x, double sigma_y){
@@ -1010,32 +935,57 @@ void _blur(std::vector<MType *> parValues, unsigned int pid)
 
 	 bool a0 =  (dynamic_cast<MBoolType*>(parValues[0]))->getValue(); // showImage (ASHOW)
 
-	 int height = (dynamic_cast<MIntType*>(parValues[1]))->getValue(); // height
+	 int height = (dynamic_cast<MIntType*>(parValues[1]))->getValue(pid); // height
      
-	string input	= (dynamic_cast<MStringType*>(parValues[2]))->getValue(); // input image
-	string output	= (dynamic_cast<MStringType*>(parValues[3]))->getValue();  // output name
+	string input	= (dynamic_cast<MIdentifierType*>(parValues[2]))->getValue(pid); // input image
+	string operation = (dynamic_cast<MStringType*>(parValues[3]))->getValue(); // input type
+	MIdentifierType* out = dynamic_cast<MIdentifierType*>(parValues[4]);
+	string output	= out->getValue(pid);  // output name
 	 
-	 int width = (dynamic_cast<MIntType*>(parValues[4]))->getValue(); // width
-	 string wName	= (dynamic_cast<MStringType*>(parValues[5]))->getValue(); // windows name
+	 int width = (dynamic_cast<MIntType*>(parValues[5]))->getValue(pid); // width
+	 string wName	= (dynamic_cast<MStringType*>(parValues[6]))->getValue(); // windows name
 
+	 int type = eMap[operation];
 
-	 this->combnames(input,pid,input);
-	 this->combnames(output,pid,output);
-
-	 __blur(input.c_str(),output.c_str(),width,height);
+	 __blur(input.c_str(),output.c_str(),width,height,type);
 
 	  if(a0){ display(output,wName);
 	  }
 
+	  out->refresh(pid);
 }
 
-int __blur(const char* input, const char* output, int width, int height){
+int __blur(const char* input, const char* output, int width, int height, int operation){
 
 	
 	Mat *src;
 	src=pool->getImage(input);
 	Mat op;
-	cv::blur( *src, op, Size(width,height));
+
+
+	switch(operation)
+	{
+		case(OPS::BOX):
+			{
+			cv::blur( *src, op, Size(width,height));
+			break;
+			}
+		case(OPS::DESPECKLE):
+			{
+		    medianBlur(*src,op,3);
+			break;
+			}
+		default:{ //MEDIAN blur
+			// when ksize is 3 or 5, the image depth should be CV_8U, CV_16U, or CV_32F, for larger aperture sizes, it can only be CV_8U.
+			Mat dst(*src);
+			if(height>5 && src->depth()!=CV_8U)
+			{ 
+				dst.convertTo(dst,CV_8U,255,0);  
+			}
+			medianBlur(dst,op, height);
+			break;
+				}
+		}
 
 	pool->storeImage(op,output);
 	return 0;
@@ -1056,33 +1006,31 @@ void _contours(std::vector<MType *> parValues, unsigned int pid){
 
 	 const char* colour = (dynamic_cast<MStringType*>(parValues[2]))->getValue(); // colour
 	 
-     string input	= (dynamic_cast<MStringType*>(parValues[3]))->getValue(); // input image
-	 string output	= (dynamic_cast<MStringType*>(parValues[4]))->getValue();  // output name
+     string input	= (dynamic_cast<MIdentifierType*>(parValues[3]))->getValue(pid); // input image
+	 MIdentifierType* out = dynamic_cast<MIdentifierType*>(parValues[4]);
+	 string output	= out->getValue(pid);  // output name
 	 
 	 string retrieval	= (dynamic_cast<MStringType*>(parValues[5]))->getValue();  // retrieval name
-	 string sobj	= (dynamic_cast<MStringType*>(parValues[6]))->getValue();  // output name
+	 string sobj	= (dynamic_cast<MIdentifierType*>(parValues[6]))->getValue(pid);  //
 	 
-	 int thickness	= (dynamic_cast<MIntType*>(parValues[7]))->getValue();  //line thickness of contour
+	 int thickness	= (dynamic_cast<MIntType*>(parValues[7]))->getValue(pid);  //line thickness of contour
 
 	 const char* wName	= (dynamic_cast<MStringType*>(parValues[8]))->getValue(); // windows name
-
-	 this->combnames(input,pid,input);
-	 this->combnames(output,pid,output);
-
-	 this->combnames(sobj,pid,sobj);
 
 	 int opret = eMap[retrieval]-FLAGS::CONTOURFLAGS;
 	 int app = eMap[approximation]-FLAGS::CONTOURFLAGS_2;
 
 	 Scalar *color;
 	 if(strcmp(colour,"RANDOM")==0)  color = new Scalar( 255, 0, 0 );
-	 else color = toColor(colour); 
+	 else color = utils::toColor(colour); 
 	 // colour to RGB function
 	 
 	 
 	 this->__contours(input.c_str(),output.c_str(),sobj.c_str(),opret,app,*color,thickness,wName,show);
 
 	 delete color;
+
+	 out->refresh(pid);
 }
 
 /***
@@ -1129,7 +1077,7 @@ void __contours(const char* input, const char* output, const char* sobj,int &opr
 		if(random_color){
 			for( size_t i = 0; i< contours.size(); i++ )
 			{	  
-			  color = this->getRandomColor();
+			  color = utils::getRandomColor();
 			  //	void drawContours(Mat& image, const vector<vector<Point> >& contours, int contourIdx, const Scalar& color, int thickness=1, int lineType=8, const vector<Vec4i>& hierarchy=vector<Vec4i>(), int maxLevel=INT_MAX, Point offset=Point())
 			 drawContours( drawing, contours, i, color, thickness, 8, hierarchy, 0, Point() );
 			}
@@ -1165,33 +1113,70 @@ void __contours(const char* input, const char* output, const char* sobj,int &opr
 void _createkernel(std::vector<MType *> parValues, unsigned int pid)
 {
 	  
-	 const char* output = (dynamic_cast<MStringType*>(parValues[4]))->getValue(); // output
-	 if(pool->containsImage(output))
+	
+	 MIdentifierType* out = dynamic_cast<MIdentifierType*>(parValues[4]);
+	 string output = out->getValueAsString(); // output
+	 if(pool->containsImage(output.c_str()))
 								return;
 
-	 double factor = (dynamic_cast<MDoubleType*>(parValues[1]))->getValue();  // kernel size
-	 int kernelsize = (dynamic_cast<MIntType*>(parValues[2]))->getValue();  // kernel size
+	 //  //
+	 double factor;
+     factor = (dynamic_cast<MDoubleType*>(parValues[1]))->getValue(pid); 
+
+	 int kernelsize = (dynamic_cast<MIntType*>(parValues[2]))->getValue(pid);  // kernel size
 	 string matrix = (dynamic_cast<MStringType*>(parValues[3]))->getValue(); // input matrix
 
-	int elem=kernelsize*kernelsize;
-	int *ker;
-	ker = (int *) malloc(sizeof(int)*elem);
-	char * pch;
-	pch = strtok((char*)matrix.c_str(),",;");
-	int i=0;
-	 while (pch != NULL)
-	{
-		ker[i++]=atoi(pch);
-		// cout<<pch<<endl;
-		pch = strtok (NULL, ",;");
-	}
+	
 
-	 __createkernel(output,kernelsize,ker,factor);
+	int elem=kernelsize*kernelsize;
+	float *ker;
+	ker = (float *) malloc(sizeof(float)*elem);
+	
+	 if(matrix.compare("ONES")==0)
+	 {
+	   for(int i=0;i<elem;i++) ker[i]=1.0;
+	 }
+	 if(matrix.compare("ZEROS")==0)
+	 {
+	   for(int i=0;i<elem;i++) ker[i]=0.0;
+	 }
+
+	 if(matrix.compare("EYE")==0)
+	 {
+		 Mat eye = Mat::eye( kernelsize, kernelsize, CV_32F );
+		 for(int i=0;i<kernelsize;i++)
+			  for(int j=0;j<kernelsize;j++) {
+				   ker[i*kernelsize+j]=eye.at<float>(j,i);
+			  }
+	 }
+	 if(matrix.find_first_of(";")!=string::npos)
+	 {
+		int i=0;
+		char *pch;
+		char *next;
+		pch = strtok((char*)matrix.c_str(),",;");
+		double onenumber;
+		while (pch != NULL)
+		{
+			onenumber =  strtod(pch,&next);
+			ker[i++]  = onenumber;
+			pch = strtok (NULL, ",;");
+		}
+	 }
+	 else
+	 {
+		 for(int i=0;i<elem;i++) ker[i]=atof(matrix.c_str());
+	 }
+
+
+	 __createkernel(output.c_str(),kernelsize,ker,factor);
 
 	 delete [] ker;
+
+	 out->refresh(pid);
 }
 
-int __createkernel(const char* output,int &kernelsize,int *ker,double &div)
+int __createkernel(const char* output,int &kernelsize,float *ker,double &div)
 {
 
 	Mat kernel = Mat::ones( kernelsize, kernelsize, CV_32F );
@@ -1222,14 +1207,13 @@ int __createkernel(const char* output,int &kernelsize,int *ker,double &div)
 void _filter2D(std::vector<MType *> parValues, unsigned int pid)
 {
 	 bool a0 =  (dynamic_cast<MBoolType*>(parValues[0]))->getValue(); // showImage (ASHOW)
-	string input = (dynamic_cast<MStringType*>(parValues[1]))->getValue();
+	string input = (dynamic_cast<MIdentifierType*>(parValues[1]))->getValue(pid);
 	const char* kernelName = (dynamic_cast<MStringType*>(parValues[2]))->getValue();
-	string output	= (dynamic_cast<MStringType*>(parValues[3]))->getValue(); //output
+	
+	MIdentifierType* out = dynamic_cast<MIdentifierType*>(parValues[3]);
+	string output	= out->getValue(pid); //output
 	const char* wName	= (dynamic_cast<MStringType*>(parValues[4]))->getValue(); // windowName
 	
-	 this->combnames(input,pid,input);
-	 this->combnames(output,pid,output);
-
 	__filter2D(input.c_str(),output.c_str(),kernelName);
 
 	  if(a0)
@@ -1237,6 +1221,7 @@ void _filter2D(std::vector<MType *> parValues, unsigned int pid)
 		  this->displayTo8C1(output.c_str(),wName);
 	  }
 
+	  out->refresh(pid);
 }
 
 int __filter2D(const char* input, const char* output, const char *kernelName)
@@ -1276,27 +1261,24 @@ int __filter2D(const char* input, const char* output, const char *kernelName)
 void _floodfill(std::vector<MType *> parValues, unsigned int pid)
 {
 	bool a0 =  (dynamic_cast<MBoolType*>(parValues[0]))->getValue(); // showImage (ASHOW)
-	const char* newVal = (dynamic_cast<MStringType*>(parValues[1]))->getValue();
-	string input = (dynamic_cast<MStringType*>(parValues[2]))->getValue();
-	double loDiff = (dynamic_cast<MDoubleType*>(parValues[3]))->getValue(); 	
-	string output	= (dynamic_cast<MStringType*>(parValues[4]))->getValue(); //output
-	string seeds = (dynamic_cast<MStringType*>(parValues[5]))->getValue();
-	double upDiff = (dynamic_cast<MDoubleType*>(parValues[6]))->getValue(); 
+	string colour = (dynamic_cast<MStringType*>(parValues[1]))->getValue();
+	string input = (dynamic_cast<MIdentifierType*>(parValues[2]))->getValue(pid);
+	double loDiff = (dynamic_cast<MDoubleType*>(parValues[3]))->getValue(pid); 	
+	MIdentifierType* out = dynamic_cast<MIdentifierType*>(parValues[4]);
+	string output	= out->getValue(pid); //output
+	string seeds = (dynamic_cast<MIdentifierType*>(parValues[5]))->getValue(pid);
+	double upDiff = (dynamic_cast<MDoubleType*>(parValues[6]))->getValue(pid); 
 	const char* wName	= (dynamic_cast<MStringType*>(parValues[7]))->getValue(); // windowName
 
-
-	 this->combnames(input,pid,input);
-	 this->combnames(output,pid,output);
-	 this->combnames(seeds,pid,seeds);
-
-	__floodfill(input.c_str(),output.c_str(),seeds.c_str(),newVal,loDiff,upDiff);
+	__floodfill(input.c_str(),output.c_str(),seeds.c_str(),colour,loDiff,upDiff);
 	 
 	if(a0){ display(output,wName); }
 
+	out->refresh(pid);
 
 }
 
-void __floodfill(const char*input,const char*output,const char*seeds,const char* newVal, double loDiff, double upDiff)
+void __floodfill(const char*input,const char*output,const char*seeds,string colour, double loDiff, double upDiff)
 {
 
 	Mat *img = pool->getImage(input); 
@@ -1310,19 +1292,19 @@ void __floodfill(const char*input,const char*output,const char*seeds,const char*
 
 	bool def = false;
 	bool random = false;
-	if(strcmp(newVal,"DEFAULT_COLOR_SEED")==0)
+	if(colour.compare("DEFAULT_COLOR_SEED")==0)
 	{ 
 		def=true;
 	}
 	else
 	{
-		if(strcmp(newVal,"RANDOM")==0)
+		if(colour.compare("RANDOM")==0)
 		{
 			random=true;
 		}
 		else
 		{ 
-			fillingColor = this->toColor(newVal);
+			fillingColor = utils::toColor(colour);
 		}
 	}
 	vloP *listP = pool->getlObj(seeds);
@@ -1332,17 +1314,15 @@ void __floodfill(const char*input,const char*output,const char*seeds,const char*
 	{
 		loP *seedPoints;
 		seedPoints = &(*myvloP);
-		
 		loP::iterator itsp;
-		for(itsp = seedPoints->begin(); itsp != seedPoints->end(); itsp++)
-		{
-			if(random)
-			{ // pick color of filling from the same color of seed point
-			Scalar a = PModule::getRandomColor();
+		Point seed = (*seedPoints)[seedPoints->size()/2];
+		if(random)
+		{ // pick color of filling from the same color of seed point
+			Scalar a = utils::getRandomColor();
 			fillingColor = &a;
-			}		
-			else
-			{
+		}		
+		else
+		{
 				if(def)
 				{
 					
@@ -1354,10 +1334,8 @@ void __floodfill(const char*input,const char*output,const char*seeds,const char*
 				}
 			}
 		// int floodFill(InputOutputArray image, Point seedPoint, Scalar newVal, Rect* rect=0, Scalar loDiff=Scalar(), Scalar upDiff=Scalar(), int flags=4 )
-		   floodFill(filled,(*itsp),*fillingColor,0,_loDiff,_upDiff);
+		   floodFill(filled,seed,*fillingColor,0,_loDiff,_upDiff);
 	   }
-	}
-
 	pool->storeImage(filled,output);
 }
 
@@ -1450,25 +1428,20 @@ void _scalarOp(std::vector<MType *> parValues, unsigned int pid){
 
 	  bool a0 =  (dynamic_cast<MBoolType*>(parValues[0]))->getValue(); // showImage (ASHOW)
       
-	  string sfactor = (dynamic_cast<MStringType*>(parValues[1]))->getValue(); 
-      string input	= (dynamic_cast<MStringType*>(parValues[2]))->getValue(); // input image
-	  int iter = (dynamic_cast<MIntType*>(parValues[3]))->getValue(); 
+	  double factor = (dynamic_cast<MDoubleType*>(parValues[2]))->getValue(pid); 
+      string input	= (dynamic_cast<MIdentifierType*>(parValues[2]))->getValueAsString(); // input image
+	  int iter = (dynamic_cast<MIntType*>(parValues[3]))->getValue(pid); 
 	  string soperation = (dynamic_cast<MStringType*>(parValues[4]))->getValue(); // operation type
-	  string output	= (dynamic_cast<MStringType*>(parValues[5]))->getValue();  // output name
+	  MIdentifierType* out = dynamic_cast<MIdentifierType*>(parValues[5]);
+	  string output	= out->getValueAsString();  // output name
 	  const char* wName	= (dynamic_cast<MStringType*>(parValues[6]))->getValue(); // windows name
-	  string _factor;
-	  this->combnames(sfactor,pid,_factor);
-	  double factor=pool->getFactor(_factor.c_str(),sfactor.c_str());
-	 
-	  
 
 	  Mat *src = pool->getImage(input.c_str());
-	  // Kernels can have Scalar Operations, but kernels are static structures
-	  // thread independent...
+
 	  if(src==0)
 	  {
-		  this->combnames(input,pid,input);  
-		  this->combnames(output,pid,output);
+		  input		= (dynamic_cast<MIdentifierType*>(parValues[2]))->getValue(pid);
+		  output	= (dynamic_cast<MIdentifierType*>(parValues[5]))->getValue(pid); 
 	  }
      int operation = eMap[soperation];
 	 this->__scalarOp(input.c_str(),output.c_str(),factor,operation,iter);
@@ -1477,6 +1450,7 @@ void _scalarOp(std::vector<MType *> parValues, unsigned int pid){
 		 this->display(output,wName);
 	  }
 
+	  out->refresh(pid);
 };
 
 /*
@@ -1530,9 +1504,13 @@ int __scalarOp(const char* input,const char* output,double factor, int operation
 					   if(op.type()==CV_32F) op=1 - op ;
 					   break;
 						}
+            case(TRANSPOSE):{
+				        op=op.t();
+					   break;
+						}
 			default:
 					cout<<"ERROR: Non existent operation";
-					exit(-1959);
+					exit(-1946);
 					break;
 		}
 		count++;
@@ -1554,16 +1532,14 @@ void _matOp(std::vector<MType *> parValues, unsigned int pid){
 
 	  bool a0 =  (dynamic_cast<MBoolType*>(parValues[0]))->getValue(); // showImage (ASHOW)
       
-	  string input1	= (dynamic_cast<MStringType*>(parValues[1]))->getValue(); // brushName
-      string input2	= (dynamic_cast<MStringType*>(parValues[2]))->getValue(); // input image
-	  int iter = (dynamic_cast<MIntType*>(parValues[3]))->getValue(); 
+	  string input1	= (dynamic_cast<MIdentifierType*>(parValues[1]))->getValue(pid); // brushName
+      string input2	= (dynamic_cast<MIdentifierType*>(parValues[2]))->getValue(pid); // input image
+	  int iter = (dynamic_cast<MIntType*>(parValues[3]))->getValue(pid); 
 	  string soperation = (dynamic_cast<MStringType*>(parValues[4]))->getValue(); // operation type
-	  string output	= (dynamic_cast<MStringType*>(parValues[5]))->getValue();  // output name
+	  
+	  MIdentifierType* out = dynamic_cast<MIdentifierType*>(parValues[5]);
+	  string output	= out->getValue(pid);  // output name
 	  const char* wName	= (dynamic_cast<MStringType*>(parValues[6]))->getValue(); // windows name
-
-	  this->combnames(input1,pid,input1);
-	  this->combnames(input2,pid,input2);
-	  this->combnames(output,pid,output);
 
      int operation = eMap[soperation];
 	 this->__matOp(input1.c_str(),input2.c_str(),output.c_str(),operation,iter);
@@ -1572,7 +1548,7 @@ void _matOp(std::vector<MType *> parValues, unsigned int pid){
 	  {
 		 this->display(output,wName);
 	  }
-
+	  out->refresh(pid);
 };
 
 /*
@@ -1619,7 +1595,7 @@ int __matOp(const char* input1,const char* input2,const char* output, int operat
 						divide(op1,op2,op3);
 						break;
 			case(MMULT):
-						// Calculates the per-element product of two arrays.
+						
 					   op1.convertTo(op1,CV_32F);
 					   op2.convertTo(op2,CV_32F);
 					   multiply(op1,op2,op3);
@@ -1636,6 +1612,7 @@ int __matOp(const char* input1,const char* input2,const char* output, int operat
 					break;
 		}
 		count++;
+		op3.copyTo(op1); // op1 is now the input1 
 	}
 	
 	pool->storeImage(op3,output);
@@ -1653,26 +1630,25 @@ int __matOp(const char* input1,const char* input2,const char* output, int operat
 void _mtsOp(std::vector<MType *> parValues, unsigned int pid){
 
     
-	  string input = (dynamic_cast<MStringType*>(parValues[0]))->getValue(); // brushName
+	  string input = (dynamic_cast<MIdentifierType*>(parValues[0]))->getValueAsString(); // brushName
 	  string soperation = (dynamic_cast<MStringType*>(parValues[1]))->getValue(); // operation type
-	  string foutput	= (dynamic_cast<MStringType*>(parValues[2]))->getValue();  // output name
+	  MIdentifierType* out = dynamic_cast<MIdentifierType*>(parValues[2]);
+	  string foutput	= out->getValue(pid);  // output factor
 	  
-	  
-	  Mat *src = pool->getImage(input.c_str());
 	  // Kernels can have Scalar Operations, but kernels are static structures
 	  // thread independent...
-	  if(src==0)
+	  if(!pool->containsImage(input.c_str()))
 	  {
-		  this->combnames(input,pid,input);  
+		 input = (dynamic_cast<MIdentifierType*>(parValues[0]))->getValue(pid); 
 	  }
 	  
-	  this->combnames(foutput,pid,foutput);
 	  int operation = eMap[soperation];
 	  this->__mtsOp(input.c_str(),foutput.c_str(),operation);
+	  out->refresh(pid);
 };
 
 /*
-
+Matrix to Scalar
 */
 
 int __mtsOp(const char* input,const char* output, int operation){
@@ -1700,13 +1676,16 @@ int __mtsOp(const char* input,const char* output, int operation){
 						s= cv::trace(op1);
 					   break;
 						}	
-		    case(MTSSD): 
-						//to implement
-						break;
-			default:
+		    case(MTSSD):{ // diagonal of covariance matrix 
+						Mat mean;
+						Mat stddev;
+						meanStdDev(op1, mean, stddev);
+						s = cv::mean(stddev);
+						break; }
+			default:{
 					cout<<"ERROR: Non existent operation";
-					exit(-1957);
-					break;
+					exit(-1946);
+					break;}
 		}
 		factor = s[0];
 		tr.message("Factor: ",factor);
@@ -1720,17 +1699,15 @@ GBLOB granulometry transform.
 */
 void _gblob(std::vector<MType *> parValues, unsigned int pid)
 {
-	double alpha = (dynamic_cast<MDoubleType*>(parValues[0]))->getValue(); 
+	double alpha = (dynamic_cast<MDoubleType*>(parValues[0]))->getValue(pid); 
 	bool ashow   = (dynamic_cast<MBoolType*>(parValues[1]))->getValue(); 
-	double beta  = (dynamic_cast<MDoubleType*>(parValues[2]))->getValue();
-    string input	= (dynamic_cast<MStringType*>(parValues[3]))->getValue(); 
-	string output	= (dynamic_cast<MStringType*>(parValues[4]))->getValue();	
-	int sequence = (dynamic_cast<MIntType*>(parValues[5]))->getValue(); 
-    int size = (dynamic_cast<MIntType*>(parValues[6]))->getValue();
+	double beta  = (dynamic_cast<MDoubleType*>(parValues[2]))->getValue(pid);
+    string input	= (dynamic_cast<MIdentifierType*>(parValues[3]))->getValue(pid); 
+	MIdentifierType* out = dynamic_cast<MIdentifierType*>(parValues[4]);
+	string output	= out->getValue(pid);	
+	int sequence = (dynamic_cast<MIntType*>(parValues[5]))->getValue(pid); 
+    size_t size = (dynamic_cast<MIntType*>(parValues[6]))->getValue(pid);
 	const char* wName = (dynamic_cast<MStringType*>(parValues[7]))->getValue();
-
-	this->combnames(output,pid,output);
-	this->combnames(input,pid,input);
 
 	  __gblob(input.c_str(),output.c_str(), size, sequence, alpha, beta);
 
@@ -1739,10 +1716,11 @@ void _gblob(std::vector<MType *> parValues, unsigned int pid)
 		 this->display(output,wName);
 	  }
 
+	  out->refresh(pid);
 
 }
 
-void __gblob(const char* input,const char* output, int size,int sequence, double alpha, double beta)
+void __gblob(const char* input,const char* output, size_t size,int sequence, double alpha, double beta)
 {
 	 ut::Trace tr = ut::Trace("GBLOB",__FILE__);
 	

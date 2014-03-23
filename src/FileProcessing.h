@@ -1,20 +1,21 @@
 #ifndef _FILE_PROCESSING_
 #define _FILE_PROCESSING_
 
+
 #include <iostream>
-#include <map>
 #include <opencv2/opencv.hpp>
+#include <map>
 #include "PModule.h"
 #include "MType.h"
-#include "MAllTypes.h"
 #include "Action.h"
 #include "utils.h"
+#include "proctools.h"
 
 #define PERCENT_USED 0.001
 
 using namespace cv;
 using namespace std;
-
+using namespace ut;
 
 class FileProcessing :
 	public PModule
@@ -23,10 +24,10 @@ class FileProcessing :
 	public:
 		typedef  void(FileProcessing::*Function)(vector<MType *>,unsigned int pid); // function pointer type
 		static map<string, Function > tFunc;
-		static map<string, int> strtoFormat;
-		static map<string, int> normType;
+		static map<string, int> eMap;
 	 
-		enum FILEFORMATS {
+		enum FLAGS{  FILEFORMATS=0, NORMTYPES=50};
+		enum WRITEFORMATS {
 							PNG,
 							JPG,
 							JP2,
@@ -39,9 +40,15 @@ class FileProcessing :
 		enum NORM {			
 							MAX,
 							MAXMIN,
-							LOG
+							LOG,
+							AUTO,
+							CLAHE
 						 };
-
+		enum TYPE{
+					 NONE, 
+					 GRAY,
+					 RGB_8
+				 };
 
 	FileProcessing(){
 
@@ -50,25 +57,34 @@ class FileProcessing :
 		tFunc["NORMALIZE"] = &FileProcessing::_normalize;
 		tFunc["WRITE FILE"] = &FileProcessing::writeFile;
 		tFunc["CROP IMAGE"] = &FileProcessing::_cropImage;
-		tFunc["RGB IMAGE"] = &FileProcessing::_rgbImage;
+		tFunc["RGB COMPOSITE"] = &FileProcessing::_rgbImage;
 		tFunc["BLEND"] = &FileProcessing::_blend;
 		tFunc["PAINT OBJECTS"] = &FileProcessing::_paintObjects;
 		tFunc["SHOW"] = &FileProcessing::_show;
 		tFunc["PRINT"] = &FileProcessing::_print;
+		tFunc["CONVERT"] = &FileProcessing::_convert;
 		
 		/*-----------FLAGS-------------------------------------*/
-		strtoFormat["PNG"]=FILEFORMATS::PNG;
-		strtoFormat["JPG"]=FILEFORMATS::JPG;
-		strtoFormat["JPEG"]=FILEFORMATS::JPG;
-		strtoFormat["TIFF"]=FILEFORMATS::TIFF;
-		strtoFormat["TIF"]=FILEFORMATS::TIFF;
-		strtoFormat["JP2"]=FILEFORMATS::JP2;
-		strtoFormat["PGM"]=FILEFORMATS::PGM;
-		strtoFormat["PBM"]=FILEFORMATS::PBM;
-		strtoFormat["PPM"]=FILEFORMATS::PPM;
 
-		normType["MAXMIN"]=NORM::MAXMIN;
-		normType["LOG"]=NORM::LOG;
+		eMap["PNG"]=PNG;
+		eMap["JPG"]=JPG;
+		eMap["JPEG"]=JPG;
+		eMap["TIFF"]=TIFF;
+		eMap["TIF"]=TIFF;
+		eMap["JP2"]=JP2;
+		eMap["PGM"]=PGM;
+		eMap["PBM"]=PBM;
+		eMap["PPM"]=PPM;
+
+		eMap["MAX"]=NORM::MAX+FLAGS::NORMTYPES;
+		eMap["MAXMIN"]=NORM::MAXMIN+FLAGS::NORMTYPES;
+		eMap["LOG"]=NORM::LOG+FLAGS::NORMTYPES;
+		eMap["AUTO"]= NORM::AUTO + FLAGS::NORMTYPES;
+		eMap["CLAHE"]= NORM::CLAHE + FLAGS::NORMTYPES;
+		eMap["NONE"] = TYPE::NONE;
+		eMap["GRAY"] = TYPE::GRAY;
+		eMap["RGB"] = TYPE::RGB_8;
+		
 	};
 
 	~FileProcessing(void)
@@ -93,21 +109,23 @@ class FileProcessing :
 
 	void _show(std::vector<MType *> parValues, unsigned int pid)
 	{
-	
-	   int height = (dynamic_cast<MIntType*>(parValues[0]))->getValue(); // HEIGHT 
-	   string input= (dynamic_cast<MStringType*>(parValues[1]))->getValue(); //input
+	   ut::Trace tr = ut::Trace("show", __FILE__);
+	  
+	   int height = (dynamic_cast<MIntType*>(parValues[0]))->getValue(pid); // HEIGHT 
+	   string input= (dynamic_cast<MIdentifierType*>(parValues[1]))->getValue(pid); //input
 	   string itype	= (dynamic_cast<MStringType*>(parValues[2]))->getValue(); // Type of showing BROWSER or WINDOW (raster)	  
-	   int width = (dynamic_cast<MIntType*>(parValues[3]))->getValue(); // WIDTH
+	   int width = (dynamic_cast<MIntType*>(parValues[3]))->getValue(pid); // WIDTH
 	   const char *wName	= (dynamic_cast<MStringType*>(parValues[4]))->getValue(); // windowName
 	   
 	   // If name FILE put filename in window
 
 	   // Select type and display with window or with raster
+	   
 
-	    this->combnames(input,pid,input);
-		Mat *img = pool->getImage(input.c_str());
+	   Mat *img = pool->getImage(input.c_str());
+	   tr.printMatrixInfo(input.c_str(),*img);
 		this->display(*img,wName,width,height); 
-	
+	    
 	
 	}
 
@@ -130,15 +148,12 @@ void _loadFile(std::vector<MType *> parValues, unsigned int pid)
 {	
 
 	   const char* filename	= (dynamic_cast<MStringType*>(parValues[0]))->getValue(); //filename
-	   string output	= (dynamic_cast<MStringType*>(parValues[1]))->getValue();  // imageName (output>
-	   
-	   // string a4	= (dynamic_cast<MStringType*>(parValues[2]))->getValue(); // regexp
-		
-		 this->combnames(output,pid,output);
-
+	   MIdentifierType* out = dynamic_cast<MIdentifierType*>(parValues[1]);
+	   string output	= out->getValue(pid);  // imageName (output>
 
 		 __loadFile(filename, output.c_str());
 
+	   out->refresh(pid);
 }
 
 int __loadFile(const char* fileName, const char* imageName)
@@ -174,7 +189,7 @@ int __loadFile(const char* fileName, const char* imageName)
 
 
 /****************************************************************************
- * DETECT
+ * DETECT - experimental
  * ----------------------------
  *  INPUT : Image
  *	OUTPUT : True if is empty and false if is blank
@@ -215,19 +230,15 @@ bool detectBlank(Mat &im)
 void _normalize(std::vector<MType *> parValues, unsigned int pid)
 {
 	   bool ashow =  (dynamic_cast<MBoolType*>(parValues[0]))->getValue(); // showImage (ASHOW)
-	   string input= (dynamic_cast<MStringType*>(parValues[1]))->getValue(); //input
-	   double maxint = (dynamic_cast<MDoubleType*>(parValues[2]))->getValue(); 
-	   double minint = (dynamic_cast<MDoubleType*>(parValues[3]))->getValue(); 
-	   string output	= (dynamic_cast<MStringType*>(parValues[4]))->getValue();  // imageName (output>
+	   string input= (dynamic_cast<MIdentifierType*>(parValues[1]))->getValue(pid); //input
+	   double maxint = (dynamic_cast<MDoubleType*>(parValues[2]))->getValue(pid); 
+	   double minint = (dynamic_cast<MDoubleType*>(parValues[3]))->getValue(pid); 
+	   MIdentifierType* out = dynamic_cast<MIdentifierType*>(parValues[4]);
+	   string output	= out->getValue(pid);  // imageName (output>
 	   string itype	= (dynamic_cast<MStringType*>(parValues[5]))->getValue(); // Type of normalization (max/min, log...)
 	   const char *wName	= (dynamic_cast<MStringType*>(parValues[6]))->getValue(); // windowName
 	  
-
-	   this->combnames(input,pid,input);
-	   this->combnames(output,pid,output);
-
-
-	   int type = normType[itype];
+	   int type = eMap[itype]-FLAGS::NORMTYPES;
 	   __normalize(input.c_str(),output.c_str(),type,maxint,minint);
 
 	   if(ashow)
@@ -236,7 +247,7 @@ void _normalize(std::vector<MType *> parValues, unsigned int pid)
 		 this->display(*img,wName); 
 	   }
 
-
+	   out->refresh(pid);
 }
 void __normalize(const char* input, const char* output,int opt,double maxint=1.0,double minint=0.0){
 	 
@@ -253,8 +264,8 @@ void __normalize(const char* input, const char* output,int opt,double maxint=1.0
 
 	 double min;
 	 double max;
-
 	 minMaxIdx(*image, &min, &max);
+	
 
  // The convertScaleAbs function performs 3 operations: scale, compute absolute value, and convert to unsigned 8-bit type.
 //  That's why the factor 255/max ensures the full range ([0-255] for unsigned 8-bit) is used. 
@@ -264,39 +275,38 @@ void __normalize(const char* input, const char* output,int opt,double maxint=1.0
 	int type = image->type();
 	
 	tr.printMatrixInfo("Input before NORMALIZE",*image);
-
-	if(maxint>1) tr.message("WARNING: maxint must be between 0 and 1");
-	if(minint>1 || minint > maxint) tr.message("WARNING: maxint must be between 0 and 1 and less than maxint.");
-
-
-	if(opt == NORM::MAX)
-	{
-
-		image->convertTo(image2, CV_32F);
-		if(type==CV_8U)
-			{
-			for( int y = 0; y < image->rows; y++ )
-			 for( int x = 0; x < image->cols; x++ )
-              {	
-				image2.at<float>(y,x)=image2.at<float>(y,x)/255.0;
-			 }
-			}
-		if(type==CV_16U)
-		{
-		for( int y = 0; y < image->rows; y++ )
-			 for( int x = 0; x < image->cols; x++ )
-              {	
-				image2.at<float>(y,x)=image2.at<float>(y,x)/65535.0;
-			  }
-		}
-		else
-		{
-		  image->convertTo(image2,CV_32F,1.0/max,0);
-		}
 	
-	}
-	if(opt == NORM::MAXMIN)
-	{ 
+	
+	switch(opt){
+		case(NORM::MAX):{
+						image->convertTo(image2, CV_32F);
+						if(type==CV_8U)
+						{
+								for( int y = 0; y < image->rows; y++ )
+									 for( int x = 0; x < image->cols; x++ )
+									  {	
+										image2.at<float>(y,x)=image2.at<float>(y,x)/255.0;
+									  }
+						}
+						if(type==CV_16U)
+						{
+							for( int y = 0; y < image->rows; y++ )
+									 for( int x = 0; x < image->cols; x++ )
+									{	
+									image2.at<float>(y,x)=image2.at<float>(y,x)/65535.0;
+									}
+						}
+						else
+						{
+						 image->convertTo(image2,CV_32F,1.0/max,0);
+						}
+						break; 
+						}
+		case(NORM::MAXMIN):{ 
+
+	 // Already checked 
+	//	if(maxint>1) tr.message("WARNING: maxint must be between 0 and 1");
+	//	if(minint>1 || minint > maxint) tr.message("WARNING: maxint must be between 0 and 1 and less than maxint.");
 
 		if(maxint<1 || minint>0)
 		{
@@ -333,15 +343,15 @@ void __normalize(const char* input, const char* output,int opt,double maxint=1.0
 			image->convertTo(*image,CV_16UC1, 65535.0/(max - min), -min * 65535.0/(max- min));
 			
 			}
-			else
+			if(type==CV_32F)
 			{
 			image->convertTo(image2,CV_32F,1.0/(max - min), -min * 1.0/(max - min));
 			}
 		}
+		break;
 	}
-
-	if(opt == NORM::LOG) 
-	{
+		case(NORM::LOG):
+		{
 		image->convertTo(image2, CV_32F);
 		for( int y = 0; y < image->rows; y++ )
 			for( int x = 0; x < image->cols; x++ )
@@ -350,13 +360,33 @@ void __normalize(const char* input, const char* output,int opt,double maxint=1.0
 				image2.at<float>(y,x)= 1-(log(image2.at<float>(y,x))/log(min/max));
 				}
  
-	  if(type==CV_8U) image2.convertTo(*image,type,255,0);
-	  if(type==CV_16U) image2.convertTo(*image,type,65535,0);
-	  if(type==CV_32F) image2.copyTo(*image);
+		if(type==CV_8U) image2.convertTo(*image,type,255,0);
+		if(type==CV_16U) image2.convertTo(*image,type,65535,0);
+		if(type==CV_32F) image2.copyTo(*image);
+		break;
+		}
+		case(NORM::AUTO):
+		{
+		  proctools::autocontrast(*image,*image);
+		  minMaxIdx(*image, &min, &max);
+		  image->convertTo(image2,CV_32F,1.0/(max - min), -min * 1.0/(max - min));
+		}
+		case(NORM::CLAHE):
+		{
+		cv::Ptr<cv::CLAHE> clahe = cv::createCLAHE();
+        if(maxint>0) clahe->setClipLimit(maxint);
+		else clahe->setClipLimit(40);
+		if(minint>0) clahe->setTilesGridSize(Size(minint,minint));
+		
+		clahe->apply(*image,*image);
+		minMaxIdx(*image, &min, &max);
+		image->convertTo(image2,CV_32F,1.0/(max - min), -min * 1.0/(max - min));
+		}
+
 	}
-	tr.message("#####################"); 
-	tr.printMatrixInfo("Input AFTER NORMALIZE",image2);
-	 pool->storeImage(image2,output);
+	tr.printMatrixInfo("Input AFTER NORMALIZE",*image);
+	tr.printMatrixInfo("Output AFTER NORMALIZE",image2);
+	pool->storeImage(image2,output);
 	 return;	 
 	 }
 
@@ -374,55 +404,53 @@ void writeFile(std::vector<MType *> parValues, unsigned int pid)
 	  ut::Trace tr = ut::Trace("writefile",__FILE__);
 	  // 0,1 APPEND
 	 string fileext	= (dynamic_cast<MStringType*>(parValues[2]))->getValue(); //fileext
-	 const char* foutput	= (dynamic_cast<MStringType*>(parValues[3]))->getValue();  // output filename (foutput)
-	 // string foutput	= (dynamic_cast<MStringType*>(parValues[4]))->getValue(); //imageName(input)
-	 string input	= (dynamic_cast<MStringType*>(parValues[5]))->getValue(); //imageName(input)
-	
-	 this->combnames(input,pid,input);
+	 const char* foutput	= (dynamic_cast<MStringType*>(parValues[3]))->getValue();  // output filename (filename)
+	 // foutput 4
+	 string input	= (dynamic_cast<MIdentifierType*>(parValues[5]))->getValue(pid); //imageName(input)
 
-	 int val=FileProcessing::strtoFormat[fileext];
+	 int val=FileProcessing::eMap[fileext];
 	 
 	 switch(val){
-			 case FILEFORMATS::PNG:
+			 case PNG:
 								  {
-									int paramId1 = (dynamic_cast<MIntType*>(parValues[6]))->getValue(); // ParamId2 P_COMPRESSION_LEVEL	
+									int paramId1 = (dynamic_cast<MIntType*>(parValues[6]))->getValue(pid); // ParamId2 P_COMPRESSION_LEVEL	
 									use_PNG(foutput,input.c_str(),paramId1);
 									break;
 								   }
-			 case FILEFORMATS::JPG:
+			 case JPG:
 								  {
-									int paramId1 = (dynamic_cast<MIntType*>(parValues[6]))->getValue(); // ParamId2 P_COMPRESSION_LEVEL	
+									int paramId1 = (dynamic_cast<MIntType*>(parValues[6]))->getValue(pid); // ParamId2 P_COMPRESSION_LEVEL	
 									use_JPG(foutput,input.c_str(),paramId1);
 									break;
 								  }
-			 case FILEFORMATS::JP2:
+			 case JP2:
 								  {
-									int paramId1 = (dynamic_cast<MIntType*>(parValues[6]))->getValue(); // ParamId2 P_COMPRESSION_LEVEL	
+									int paramId1 = (dynamic_cast<MIntType*>(parValues[6]))->getValue(pid); // ParamId2 P_COMPRESSION_LEVEL	
 									use_JP2(foutput,input.c_str(),paramId1);
 									break;
 								  }
-			  case FILEFORMATS::TIFF:
+			  case TIFF:
 								 {
 									// int paramId1 = (dynamic_cast<MIntType*>(parValues[6]))->getValue(); // ParamId2 P_COMPRESSION_LEVEL
 								    use_TIFF(foutput,input.c_str());
 									break;
 								 }	
-			  case FILEFORMATS::PPM:
+			  case PPM:
 								 {
 									// int paramId1 = (dynamic_cast<MIntType*>(parValues[6]))->getValue(); // ParamId2 P_COMPRESSION_LEVEL
-								    use_PM(foutput,input.c_str(),FILEFORMATS::PPM);
+								    use_PM(foutput,input.c_str(),PPM);
 									break;
 								 }
-			   case FILEFORMATS::PGM:
+			   case PGM:
 								 {
 									// int paramId1 = (dynamic_cast<MIntType*>(parValues[6]))->getValue(); // ParamId2 P_COMPRESSION_LEVEL
-								    use_PM(foutput,input.c_str(),FILEFORMATS::PGM);
+								    use_PM(foutput,input.c_str(),PGM);
 									break;
 								 }
-			   case FILEFORMATS::PBM:
+			   case PBM:
 								 {
 									// int paramId1 = (dynamic_cast<MIntType*>(parValues[6]))->getValue(); // ParamId2 P_COMPRESSION_LEVEL
-								    use_PM(foutput,input.c_str(),FILEFORMATS::PBM);
+								    use_PM(foutput,input.c_str(),PBM);
 									break;
 								 }
 
@@ -454,17 +482,15 @@ void _cropImage(std::vector<MType *> parValues, unsigned int pid)
 	 ut::Trace tr = ut::Trace("cropImage",__FILE__);
 
 	 bool ashow =  (dynamic_cast<MBoolType*>(parValues[0]))->getValue(); // showImage (ASHOW)
-	 int cleft = (dynamic_cast<MIntType*>(parValues[1]))->getValue();	//<COORDINATES_LEFT>500</COORDINATES_X>
-	 int cright = (dynamic_cast<MIntType*>(parValues[2]))->getValue();	//<COORDINATES_RIGHT>700</COORDINATES_Y>
-	 string input	= (dynamic_cast<MStringType*>(parValues[3]))->getValue();  // imageName (INPUT)
-	 string output	= (dynamic_cast<MStringType*>(parValues[4]))->getValue();	//output	(OUTPUT)
+	 int cleft = (dynamic_cast<MIntType*>(parValues[1]))->getValue(pid);	//<COORDINATES_LEFT>500</COORDINATES_X>
+	 int cright = (dynamic_cast<MIntType*>(parValues[2]))->getValue(pid);	//<COORDINATES_RIGHT>700</COORDINATES_Y>
+	 string input	= (dynamic_cast<MIdentifierType*>(parValues[3]))->getValue(pid);  // imageName (INPUT)
+	 MIdentifierType* out = dynamic_cast<MIdentifierType*>(parValues[4]);
+	 string output	= out->getValue(pid);	//output	(OUTPUT)
 	 const char* wName	= (dynamic_cast<MStringType*>(parValues[5]))->getValue(); // windowName
-	 int wheight = (dynamic_cast<MIntType*>(parValues[6]))->getValue();	 // <WINDOW_HEIGHT>600</WINDOW_HEIGHT>
-	 int wwidth = (dynamic_cast<MIntType*>(parValues[7]))->getValue();	 // <WINDOW_WIDTH>800</WINDOW_WIDTH>
+	 int wheight = (dynamic_cast<MIntType*>(parValues[6]))->getValue(pid);	 // <WINDOW_HEIGHT>600</WINDOW_HEIGHT>
+	 int wwidth = (dynamic_cast<MIntType*>(parValues[7]))->getValue(pid);	 // <WINDOW_WIDTH>800</WINDOW_WIDTH>
 		
-
-	 this->combnames(input,pid,input);
-	 this->combnames(output,pid,output);
 
 	 Mat *img=pool->getImage(input.c_str());
 
@@ -477,10 +503,8 @@ void _cropImage(std::vector<MType *> parValues, unsigned int pid)
 	}
 	catch( cv::Exception& e )
 	{
-		tr.message("Cropping size exceeding image boundaries.");
-		#ifdef _MY_DEBUG_	
+		cout<<("Error: Cropping size exceeding image boundaries.")<<endl;	
 		tr.message("Error :",e.what());
-		#endif
 		exit(-1913);
 	}	 
 	 
@@ -490,6 +514,8 @@ void _cropImage(std::vector<MType *> parValues, unsigned int pid)
 	{
 	this->display(croppedimage,wName);
 	}
+	out->refresh(pid);
+
 }
  
 /****************************************************************************
@@ -503,17 +529,13 @@ void _rgbImage(std::vector<MType *> parValues, unsigned int pid)
 	 ut::Trace tr = ut::Trace("rgbImage",__FILE__);
 
 	 bool ashow =  (dynamic_cast<MBoolType*>(parValues[0]))->getValue(); // showImage (ASHOW)
-	 string binput	= (dynamic_cast<MStringType*>(parValues[1]))->getValue();  // B
-	 string ginput	= (dynamic_cast<MStringType*>(parValues[2]))->getValue();  // G
-	 string output	= (dynamic_cast<MStringType*>(parValues[3]))->getValue();	//output	(OUTPUT)
-	 string rinput	= (dynamic_cast<MStringType*>(parValues[4]))->getValue();  // R
+	 string binput	= (dynamic_cast<MIdentifierType*>(parValues[1]))->getValue(pid);  // B
+	 string ginput	= (dynamic_cast<MIdentifierType*>(parValues[2]))->getValue(pid);  // G
+	 MIdentifierType* out = dynamic_cast<MIdentifierType*>(parValues[3]);
+	 string output	= out->getValue(pid);	//output	(OUTPUT)
+	 string rinput	= (dynamic_cast<MIdentifierType*>(parValues[4]))->getValue(pid);  // R
 	 const char* wName	= (dynamic_cast<MStringType*>(parValues[5]))->getValue(); // windowName
 	
-	 this->combnames(binput,pid,binput);
-	 this->combnames(ginput,pid,ginput);
-	 this->combnames(rinput,pid,rinput);
-	 this->combnames(output,pid,output);
-
 	 __rgbImage(rinput.c_str(),ginput.c_str(),binput.c_str(),output.c_str(),pid);
 
 
@@ -521,6 +543,8 @@ void _rgbImage(std::vector<MType *> parValues, unsigned int pid)
 	 {
 		 this->display(output,wName);
 	 }
+
+	 out->refresh(pid);
 }
 
 int __rgbImage(const char* redim, const char* greenim, const char* blueim,const char*output,unsigned int pid){
@@ -533,8 +557,9 @@ int __rgbImage(const char* redim, const char* greenim, const char* blueim,const 
 	int rws,cls;
 	double minVal, maxVal;
 	string nullf;
-	this->combnames("NULL",pid,nullf);
+	utils::combnames("NULL",pid,nullf);
 
+	
 	if(nullf.compare(redim)!=0)
 	{
 		redchx=pool->getImage(redim);
@@ -576,6 +601,21 @@ int __rgbImage(const char* redim, const char* greenim, const char* blueim,const 
 		 bluech.convertTo(bluech,CV_8UC1,255.0/(maxVal - minVal), -minVal * 255.0/(maxVal - minVal));
  
 	 }
+	 if(rt && gt)  if((redchx->rows != greenchx->rows)||(redchx->cols != greenchx->cols)) 
+				{
+				   cout<< ("ERROR: All input images must have the same size. RED and GREEN don�t match.")<<endl;
+				   exit(-1945);
+				}
+	 if(rt && bt)  if((redchx->rows != bluechx->rows)|| (redchx->cols != bluechx->cols))
+		        {
+				   cout<< ("ERROR: All input images must have the same size.RED and BLUE don�t match.")<<endl;
+				   exit(-1945);
+				}
+	 if(bt && gt) if((greenchx->rows != bluechx->rows)|| (greenchx->cols != bluechx->cols))
+				{
+				   cout<< ("ERROR: All input images must have the same size.BLUE and GREEN don�t match.")<<endl;
+				   exit(-1945);
+				}
 
 	 Mat g =  Mat::zeros(Size(rws,cls), CV_8UC1);
 
@@ -609,24 +649,22 @@ int __rgbImage(const char* redim, const char* greenim, const char* blueim,const 
  ***************************************************************************/
 void _blend(std::vector<MType *> parValues, unsigned int pid)
 {
-	double alpha1 = (dynamic_cast<MDoubleType*>(parValues[0]))->getValue(); //output
-	double alpha2 = (dynamic_cast<MDoubleType*>(parValues[1]))->getValue(); //output
+	double alpha1 = (dynamic_cast<MDoubleType*>(parValues[0]))->getValue(pid); //output
+	double alpha2 = (dynamic_cast<MDoubleType*>(parValues[1]))->getValue(pid); //output
 	bool a0 =  (dynamic_cast<MBoolType*>(parValues[2]))->getValue(); // showImage (ASHOW)
-	string input1 = (dynamic_cast<MStringType*>(parValues[3]))->getValue();
-	string input2 = (dynamic_cast<MStringType*>(parValues[4]))->getValue();
-	string output	= (dynamic_cast<MStringType*>(parValues[5]))->getValue(); //output
+	string input1 = (dynamic_cast<MIdentifierType*>(parValues[3]))->getValue(pid);
+	string input2 = (dynamic_cast<MIdentifierType*>(parValues[4]))->getValue(pid);
+	MIdentifierType* out = dynamic_cast<MIdentifierType*>(parValues[5]);
+	string output	= out->getValue(pid); //output
 	const char* wName	= (dynamic_cast<MStringType*>(parValues[6]))->getValue(); // windowName
 
 
-	 this->combnames(input1,pid,input1);
-	 this->combnames(input2,pid,input2);
-	 this->combnames(output,pid,output);
 
 	__blend(input1.c_str(),input2.c_str(),output.c_str(),alpha1,alpha2);
 	 
 	if(a0){ display(output.c_str(),wName); }
 
-
+	out->refresh(pid);
 }
 
 void __blend(const char*input1,const char*input2,const char*output, double &alpha1,double &alpha2)
@@ -660,30 +698,27 @@ void _paintObjects(std::vector<MType *> parValues, unsigned int pid)
 {
 
 	 bool show =  (dynamic_cast<MBoolType*>(parValues[0]))->getValue(); // showImage (ASHOW)
-	 const char* colour = (dynamic_cast<MStringType*>(parValues[1]))->getValue(); // colour	 
-	 int height			= (dynamic_cast<MIntType*>(parValues[2]))->getValue(); 
-	 string input	= (dynamic_cast<MStringType*>(parValues[3]))->getValue(); // input image
-	 string lobj	= (dynamic_cast<MStringType*>(parValues[4]))->getValue();  // output name
-	 string output	= (dynamic_cast<MStringType*>(parValues[5]))->getValue();  // output name
+	 string colour = (dynamic_cast<MStringType*>(parValues[1]))->getValue(); // colour	 
+	 int height			= (dynamic_cast<MIntType*>(parValues[2]))->getValue(pid); 
+	 string input	= (dynamic_cast<MIdentifierType*>(parValues[3]))->getValueAsString(); // input image
+	 string lobj	= (dynamic_cast<MIdentifierType*>(parValues[4]))->getValue(pid);  
+	 MIdentifierType* out = dynamic_cast<MIdentifierType*>(parValues[5]);
+	 string output	= out->getValue(pid);  // output name
 	 bool paintAsContours = (dynamic_cast<MBoolType*>(parValues[6]))->getValue();
-	 int thickness	= (dynamic_cast<MIntType*>(parValues[7]))->getValue();  //line thickness of contour
-	 int width = (dynamic_cast<MIntType*>(parValues[8]))->getValue(); 
+	 int thickness	= (dynamic_cast<MIntType*>(parValues[7]))->getValue(pid);  //line thickness of contour
+	 int width = (dynamic_cast<MIntType*>(parValues[8]))->getValue(pid); 
 	 const char* wName	= (dynamic_cast<MStringType*>(parValues[9]))->getValue(); // windows name
 
 	 Scalar *color;
-	 bool random = (strcmp(colour,"RANDOM")==0);
-	 if(!random) color = toColor(colour); 
+	 bool random = (colour.compare("RANDOM")==0);
+	 if(!random) color = utils::toColor(colour); 
 	 else color = new Scalar(0,0,0);
 	 // colour to RGB function
 	 
 	 if(!(input.compare("BLANK_BINARY")==0 || input.compare("BLANK_COLOUR")==0))
 	 {
-	    this->combnames(input,pid,input);
+	    input	= (dynamic_cast<MIdentifierType*>(parValues[3]))->getValue(pid);
 	 }
-	
-	 this->combnames(output,pid,output);
-	 this->combnames(lobj,pid,lobj);
-
 
 	 this->__paintObjects(input.c_str(),output.c_str(),lobj.c_str(),*color,thickness, random,paintAsContours,width,height);
 	
@@ -694,6 +729,7 @@ void _paintObjects(std::vector<MType *> parValues, unsigned int pid)
 		 img->convertTo(show_im,CV_8UC3);
 		 display(show_im,wName,width,height); }
 	 delete color;
+	 out->refresh(pid);
 }
 
 void __paintObjects(const char* input, const char* output, const char* sobj,Scalar color,int &thickness,bool random_color,bool paintAsContours,int width,int height){
@@ -737,7 +773,7 @@ void __paintObjects(const char* input, const char* output, const char* sobj,Scal
 				
 				for (vloP::iterator it = contours.begin(); it!=contours.end(); ++it)
 				{
-					if(random_color) color = this->getRandomColor(); 
+					if(random_color) color = utils::getRandomColor(); 
 					for (loP::iterator obj = it->begin(); obj!=it->end(); ++obj)
 					{
 						j = obj->x;
@@ -750,7 +786,7 @@ void __paintObjects(const char* input, const char* output, const char* sobj,Scal
 			{
 				for (vloP::iterator it = objects->begin(); it!=objects->end(); ++it)
 				{
-					if(random_color) color = this->getRandomColor(); 
+					if(random_color) color = utils::getRandomColor(); 
 					for (loP::iterator obj = it->begin(); obj!=it->end(); ++obj)
 					{
 						j = obj->x;
@@ -773,7 +809,7 @@ void __paintObjects(const char* input, const char* output, const char* sobj,Scal
 	if(random_color){
 		for( size_t i = 0; i< contours.size(); i++ )
 		{	  
-		color = this->getRandomColor(); 
+		color = utils::getRandomColor(); 
 		drawContours( cont, *objects, i, color, thickness-1, 8 );
 		}
 	}
@@ -789,8 +825,62 @@ void __paintObjects(const char* input, const char* output, const char* sobj,Scal
 	return;
 }
 
-
-
+void _convert(std::vector<MType *> parValues, unsigned int pid)
+{
+	   ut::Trace tr = ut::Trace("Convert",__FILE__);
+	   string input= (dynamic_cast<MIdentifierType*>(parValues[1]))->getValue(pid); //input
+	   int depth = (dynamic_cast<MIntType*>(parValues[0]))->getValue(pid); // WIDTH
+	   bool norm	= (dynamic_cast<MBoolType*>(parValues[2]))->getValue(); 
+	   string type	= (dynamic_cast<MStringType*>(parValues[4]))->getValue(); //  
+	   string output = (dynamic_cast<MIdentifierType*>(parValues[3]))->getValue(pid); //output
+	   	   
+	   Mat *img = pool->getImage(input);
+	   tr.printMatrixInfo(input.c_str(),*img);
+	   Mat out;
+	   if(eMap[type]!=TYPE::NONE)
+	   {
+				if(eMap[type]==TYPE::RGB_8) { cvtColor(*img,out,CV_GRAY2RGB); }
+				else
+				if(eMap[type]==TYPE::GRAY) { cvtColor(*img,out,CV_RGB2GRAY); }
+				return;
+	   }
+	  double min,max;
+	 minMaxIdx(*img, &min, &max);
+     if(norm)
+	 {
+	   switch(depth)
+	   {
+	   case(8):  img->convertTo(out,CV_8UC1,255.0/(max - min), -min * 255.0/(max - min)); break;
+	   case(-8): depth = CV_8S; break;
+	   case(16): img->convertTo(out,CV_16UC1,65535.0/(max - min), -min * 65535.0/(max - min));  break;
+	   case(-16): depth = CV_16S;break;
+	   case(-32): depth = CV_32S; break;
+       case(32): img->convertTo(out,CV_32FC1,1.0/(max - min), -min * 1.0/(max - min));  
+		         break;
+	   case(64): img->convertTo(out,CV_64FC1,1.0/(max - min), -min * 1.0/(max - min));  
+		         break;
+	   default : break;
+	   }
+	 } 
+	 else
+	 {
+	   switch(depth)
+	   {
+	   case(8):  img->convertTo(out,CV_8UC1);  break;
+	   case(-8): depth = CV_8S; break;
+	   case(16): img->convertTo(out,CV_16UC1);  break;
+	   case(-16): depth = CV_16S; break;
+	   case(-32): depth = CV_32S; break;
+       case(32): img->convertTo(out,CV_32FC1);  break;
+	   case(64): img->convertTo(out,CV_64FC1);  break;
+	   default : break;
+	   }
+	 }	   	
+	   tr.printMatrixInfo(output.c_str(),out);
+	   pool->storeImage(out,output);
+	   (dynamic_cast<MIdentifierType*>(parValues[3]))->refresh(pid);
+	   return;
+}
 
 };
 #endif // _FILE_PROCESSING_

@@ -55,8 +55,6 @@ using namespace std;
 #endif
 
 class WatershedSegmenter{
-private:
-    cv::Mat markers;
 
 public:
 	/* list of STL, C++ */
@@ -105,16 +103,14 @@ public:
 
 
 /******************************************************************************************************/
-    void setMarkers(cv::Mat& markerImage)
-    {
-        markerImage.convertTo(markers, CV_32SC1);
-    }
 
-    cv::Mat process(cv::Mat &image)
+
+    void process(cv::Mat &image,cv::Mat& markerImage)
     {
-        cv::watershed(image, markers);
-        markers.convertTo(markers,CV_8U);
-        return markers;
+ 
+		if(markerImage.depth()!=CV_32SC1) markerImage.convertTo(markerImage, CV_32SC1);
+		cv::watershed(image, markerImage);
+        return;
     }
 
 /******************************************************************************************************/

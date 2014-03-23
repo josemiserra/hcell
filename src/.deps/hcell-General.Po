@@ -1,5 +1,6 @@
 src/hcell-General.o: src/General.cpp src/General.h src/PModule.h \
- src/PoolManager.h src/utils.h src/Slot.h src/MType.h src/MAllTypes.h
+ src/PoolManager.h src/Pool.h src/utils.h src/Slot.h src/MType.h \
+ src/STree.h src/proctools.h src/Interpreter.h
 
 src/General.h:
 
@@ -7,10 +8,16 @@ src/PModule.h:
 
 src/PoolManager.h:
 
+src/Pool.h:
+
 src/utils.h:
 
 src/Slot.h:
 
 src/MType.h:
 
-src/MAllTypes.h:
+src/STree.h:
+
+src/proctools.h:
+
+src/Interpreter.h:

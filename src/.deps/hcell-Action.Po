@@ -1,16 +1,23 @@
-src/hcell-Action.o: src/Action.cpp src/Action.h src/MType.h \
- src/MAllTypes.h src/utils.h src/PModule.h src/PoolManager.h src/Slot.h
+src/hcell-Action.o: src/Action.cpp src/Action.h src/MType.h src/STree.h \
+ src/PoolManager.h src/Pool.h src/utils.h src/Slot.h src/proctools.h \
+ src/Interpreter.h src/PModule.h
 
 src/Action.h:
 
 src/MType.h:
 
-src/MAllTypes.h:
-
-src/utils.h:
-
-src/PModule.h:
+src/STree.h:
 
 src/PoolManager.h:
 
+src/Pool.h:
+
+src/utils.h:
+
 src/Slot.h:
+
+src/proctools.h:
+
+src/Interpreter.h:
+
+src/PModule.h:

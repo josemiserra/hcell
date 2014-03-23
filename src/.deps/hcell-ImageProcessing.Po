@@ -1,6 +1,7 @@
 src/hcell-ImageProcessing.o: src/ImageProcessing.cpp \
- src/ImageProcessing.h src/PModule.h src/PoolManager.h src/utils.h \
- src/Slot.h src/MType.h src/MAllTypes.h src/proctools.h
+ src/ImageProcessing.h src/PModule.h src/PoolManager.h src/Pool.h \
+ src/utils.h src/Slot.h src/MType.h src/STree.h src/proctools.h \
+ src/Interpreter.h src/BinaryProcessor.h
 
 src/ImageProcessing.h:
 
@@ -8,12 +9,18 @@ src/PModule.h:
 
 src/PoolManager.h:
 
+src/Pool.h:
+
 src/utils.h:
 
 src/Slot.h:
 
 src/MType.h:
 
-src/MAllTypes.h:
+src/STree.h:
 
 src/proctools.h:
+
+src/Interpreter.h:
+
+src/BinaryProcessor.h:

@@ -751,6 +751,7 @@ const char* TiXmlDocument::Parse( const char* p, TiXmlParsingData* prevData, TiX
 		return 0;
 	}
 
+
 	while ( p && *p )
 	{
 		TiXmlNode* node = Identify( p, encoding );
@@ -1069,6 +1070,8 @@ const char* TiXmlElement::Parse( const char* p, TiXmlParsingData* data, TiXmlEnc
 	const char* pErr = p;
 
     p = ReadName( p, &value, encoding );
+	
+
 	if ( !p || !*p )
 	{
 		if ( document )	document->SetError( TIXML_ERROR_FAILED_TO_READ_ELEMENT_NAME, pErr, data, encoding );
@@ -1107,11 +1110,14 @@ const char* TiXmlElement::Parse( const char* p, TiXmlParsingData* data, TiXmlEnc
 			// elements -- read the end tag, and return.
 			++p;
 			p = ReadValue( p, data, encoding );		// Note this is an Element method, and will set the error if one happens.
+			
 			if ( !p || !*p ) {
 				// We were looking for the end tag, but found nothing.
 				// Fix for [ 1663758 ] Failure to report error on bad XML
-				if ( document ) document->SetError( TIXML_ERROR_READING_END_TAG, p, data, encoding );
-				return 0;
+				if ( document ){
+					document->SetError( TIXML_ERROR_READING_END_TAG, p, data, encoding );
+				}
+					return 0;
 			}
 
 			// We should find the end tag now
@@ -1127,12 +1133,18 @@ const char* TiXmlElement::Parse( const char* p, TiXmlParsingData* data, TiXmlEnc
 					++p;
 					return p;
 				}
-				if ( document ) document->SetError( TIXML_ERROR_READING_END_TAG, p, data, encoding );
+				if ( document ) {
+
+					document->SetError( TIXML_ERROR_READING_END_TAG, p, data, encoding );
+				}			
 				return 0;
 			}
 			else
 			{
-				if ( document ) document->SetError( TIXML_ERROR_READING_END_TAG, p, data, encoding );
+				if ( document ) 
+				{
+					document->SetError( TIXML_ERROR_READING_END_TAG, p, data, encoding );
+				}
 				return 0;
 			}
 		}
@@ -1402,6 +1414,7 @@ const char* TiXmlAttribute::Parse( const char* p, TiXmlParsingData* data, TiXmlE
 	// Read the name, the '=' and the value.
 	const char* pErr = p;
 	p = ReadName( p, &name, encoding );
+
 	if ( !p || !*p )
 	{
 		if ( document ) document->SetError( TIXML_ERROR_READING_ATTRIBUTES, pErr, data, encoding );

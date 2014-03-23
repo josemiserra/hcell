@@ -8,10 +8,12 @@
 
 #include "Pipeline.h"
 
+#include "PModule.h"
 #include "General.h"
 #include "utils.h"
 #include "Writer.h"
 #include "ComputeFeatures.h"
+#include "Checker.h"
 
 using namespace std;
 
@@ -28,23 +30,15 @@ void Pipeline::preparePipeline(void){
 	vector<vector<string>> _filestoLoad;
 	vector<vector<string>> _filestoSave;
 	
-	vector<string> *parameterNames;
+	
 	vector<MType *> *parameterValues;
-
-	vector<string>::iterator parn_it;
     vector<MType *>::iterator par_it;
 	
 	event_sequence = new int[this->_actionsList.size()+1];
 
-
 	map<string,FeaturesPipe*> npipes;
 
 	bool features_found = false;
-
-	// This function takes an actions list and build a graph based on it
-	// Under development for next versions. Now empty.
-    this->_pgraph.buildgraph();
-	
 	bool set_all = false;
 	bool a_basic=false;
 	bool a_moment=false;
@@ -63,6 +57,7 @@ void Pipeline::preparePipeline(void){
 
 	it = this->_actionsList.begin(); 
 	end = _actionsList.end();
+    shared_ptr<General> g(new General());
 
 	 while ( it != end ) {
 
@@ -75,13 +70,10 @@ void Pipeline::preparePipeline(void){
 		 if(action_name.compare("LOAD FILE")==0)
 		 {
 			  // Getting the regular expression
-			 parameterNames=&(*it)->getParameterNames();
 			 parameterValues = &(*it)->getParameters();
-			 for(parn_it=parameterNames->begin(),par_it = parameterValues->begin();
-				 parn_it!=parameterNames->end();
-				 parn_it++,par_it++)
+			 for(par_it = parameterValues->begin(); par_it!=parameterValues->end(); par_it++)
 			 {
-					 if((*parn_it).compare("REGEXP")==0)
+					 if((*par_it)->getTag().compare("REGEXP")==0)
 					 {
 						 myRegExp=(dynamic_cast<MStringType *>(*par_it))->getValue();						 
 						 _filestoLoad.push_back(this->getFilesFromDir(*_inpval.indir,myRegExp.c_str()));
@@ -107,14 +99,10 @@ void Pipeline::preparePipeline(void){
 			 string reference;
 			 bool append = false;
 			 bool counter = true;
-			 parameterNames=&(*it)->getParameterNames();
 			 parameterValues = &(*it)->getParameters();
-			 for(parn_it=parameterNames->begin(),par_it = parameterValues->begin();
-				 parn_it!=parameterNames->end();
-				 parn_it++,par_it++)
+			 for(par_it = parameterValues->begin();par_it!=parameterValues->end();par_it++)
 				 {
-
-					 if((*parn_it).compare("APPEND_DATE")==0)
+					 if((*par_it)->getTag().compare("APPEND_DATE")==0)
 					{
 						
 						if((dynamic_cast<MBoolType *>(*par_it))->getValue())
@@ -123,7 +111,7 @@ void Pipeline::preparePipeline(void){
 
 						}
 					}
-					if((*parn_it).compare("APPEND_ORIGINAL_NAME")==0)
+					if((*par_it)->getTag().compare("APPEND_ORIGINAL_NAME")==0)
 					{
 					    if((dynamic_cast<MBoolType *>(*par_it))->getValue())
 					    {
@@ -131,15 +119,14 @@ void Pipeline::preparePipeline(void){
 						//counter = false;
 						}
 					}
-					if((*parn_it).compare("FOUTPUT")==0)
+					if((*par_it)->getTag().compare("FOUTPUT")==0)
 					{
 						foutput_name=(dynamic_cast<MStringType *>(*par_it))->getValue();
 					 }
-					if((*parn_it).compare("INPUT")==0)
+					if((*par_it)->getTag().compare("INPUT")==0)
 					{
 						  reference=(dynamic_cast<MStringType *>(*par_it))->getValue();
-						  // reference = this->_pgraph.traceBack(string(reference),*(*it)).c_str();
-					 }
+     				 }
 				}
 			
 			 if(append){
@@ -172,19 +159,16 @@ void Pipeline::preparePipeline(void){
 			if( basic | shape | moment | haralick |all) 
 			{
 			 features_found=true;
-			 parameterNames=&(*it)->getParameterNames();
 			 parameterValues = &(*it)->getParameters();
 			
 			if(all)
 			 {
 				total_c=0;
 				event_sequence[ca]= FUNCTIONS::ALL;
-				for(parn_it=parameterNames->begin(),par_it = parameterValues->begin();
-				parn_it!=parameterNames->end();
-				parn_it++,par_it++)
+				for(par_it = parameterValues->begin();par_it!=parameterValues->end();par_it++)
 				{
 					
-					if((*parn_it).compare("BASIC")==0) 
+					if((*par_it)->getTag().compare("BASIC")==0) 
 					{ 
 						a_basic=((dynamic_cast<MBoolType *>(*par_it))->getValue()); 
 						total_c++;
@@ -193,7 +177,7 @@ void Pipeline::preparePipeline(void){
 						opts|=opts.set(2);
 						opts|=opts.set(3);
 					}
-					if((*parn_it).compare("MOMENT")==0)
+					if((*par_it)->getTag().compare("MOMENT")==0)
 					{ 
 						a_moment=((dynamic_cast<MBoolType *>(*par_it))->getValue());
 						total_c+=2;
@@ -203,7 +187,7 @@ void Pipeline::preparePipeline(void){
 						opts|=opts.set(11);
 					
 					}
-					if((*parn_it).compare("SHAPE")==0)
+					if((*par_it)->getTag().compare("SHAPE")==0)
 					{
 						a_shape=((dynamic_cast<MBoolType *>(*par_it))->getValue()); 
 						total_c++;
@@ -212,24 +196,24 @@ void Pipeline::preparePipeline(void){
 						opts|=opts.set(6);
 						opts|=opts.set(7);								
 					}
-					if((*parn_it).compare("HARALICK")==0){ a_haralick=((dynamic_cast<MBoolType *>(*par_it))->getValue());  }
+					if((*par_it)->getTag().compare("HARALICK")==0){ a_haralick=((dynamic_cast<MBoolType *>(*par_it))->getValue());  }
 				}
 				set_all = true;
 			 }
 			 if(basic)
 			 {
 						event_sequence[ca]= FUNCTIONS::BASIC;
-						getBasicOptions(opts,*parameterNames,*parameterValues);
+						getBasicOptions(opts,*parameterValues);
 			 }
 			 if(shape)
 			 {
 				 event_sequence[ca]= FUNCTIONS::SHAPE;
-				 this->getShapeOptions(opts,*parameterNames,*parameterValues);
+				 this->getShapeOptions(opts,*parameterValues);
 			 }
 			 if(moment)
 			 {
 				 event_sequence[ca]= FUNCTIONS::MOMENT;
-				 this->getMomentOptions(opts,*parameterNames,*parameterValues);
+				 this->getMomentOptions(opts,*parameterValues);
 			 }
 			 if(haralick)
 			 {
@@ -249,19 +233,17 @@ void Pipeline::preparePipeline(void){
 			 bool counter = true;
 			 string str;
 
-			 for(parn_it=parameterNames->begin(),par_it = parameterValues->begin();
-				 parn_it!=parameterNames->end();
-				 parn_it++,par_it++)
+			 for(par_it = parameterValues->begin(); par_it!=parameterValues->end(); par_it++)
 				{
 					
-					 if((*parn_it).compare("APPEND_DATE")==0)
+					 if((*par_it)->getTag().compare("APPEND_DATE")==0)
 					 {
 						if((dynamic_cast<MBoolType *>(*par_it))->getValue())
 						{
 							wdate = tr.currentDateTime();
 						}
 					  }
-					if((*parn_it).compare("APPEND_ORIGINAL_NAME")==0)
+					if((*par_it)->getTag().compare("APPEND_ORIGINAL_NAME")==0)
 					{
 					    if((dynamic_cast<MBoolType *>(*par_it))->getValue())
 						{
@@ -269,7 +251,7 @@ void Pipeline::preparePipeline(void){
 						//counter = false;
 						}
 					}
-					if((*parn_it).compare("FOUTPUT")==0)
+					if((*par_it)->getTag().compare("FOUTPUT")==0)
 					{
 						fname=(dynamic_cast<MStringType *>(*par_it))->getValue();
 						 str.append(this->_inpval.outdir);
@@ -279,11 +261,11 @@ void Pipeline::preparePipeline(void){
 
 
 					 }
-					 if((*parn_it).compare("SAVE_INDIVIDUAL")==0)
+					 if((*par_it)->getTag().compare("SAVE_INDIVIDUAL")==0)
 					 {
 						 save_feat =((dynamic_cast<MBoolType *>(*par_it))->getValue());
 					 } // endif
-					 if((*parn_it).compare("REFERENCE")==0)
+					 if((*par_it)->getTag().compare("REFERENCE")==0)
 					 {
 					  	ref = (dynamic_cast<MStringType *>(*par_it))->getValue();
 					 }
@@ -342,7 +324,7 @@ void Pipeline::preparePipeline(void){
 			 // The reference parameter serves as a reference
 	
 if(basic | shape | moment){
-	if(npipes.count(fname)==0)
+	if(npipes.count(oname)==0)
 			 {
 				  
 				   if(append)
@@ -365,7 +347,7 @@ if(basic | shape | moment){
 				   fp->_total=1;
 				    if(all) fp->_total = total_c;
 				   fp->_fcount=0;
-				   npipes.insert(pair<string,FeaturesPipe*>(string(fname),fp));
+				   npipes.insert(pair<string,FeaturesPipe*>(string(oname),fp));
 
 					for (vector<string>::iterator it = _filestoSaveFeatures.begin() ; it != _filestoSaveFeatures.end(); ++it)
 					{
@@ -374,7 +356,7 @@ if(basic | shape | moment){
 			 }
 			 else
 			 {
-			    FeaturesPipe *fp = npipes[fname];
+			    FeaturesPipe *fp = npipes[oname];
 				fp->_total++;
 				fp->_options = (opts | fp->_options);
 			 }
@@ -446,13 +428,123 @@ if(features_found)
 	   this->event_sequence[ca]=FUNCTIONS::OTHERS;
 
 
-	    shared_ptr<General> g(new General());
 		Action *cleaner= new Action(g);
 		cleaner->setAction("CLEAN",NULL,NULL,0);
 		this->_actionsList.push_back(cleaner);
 
+   // Now, perform an iteration...a fake one.
+	 int64 t1,t2;
+	 t1= tr.GetTimeMs64();
+     PModule::setShowOff();
+	 this->simulate();	
+	 PModule::setShowOn();
+	 t2 = tr.GetTimeMs64();
+	
+	 if(this->_inpval.noshow) PModule::setShowOff();
+
+	 cout << "ESTIMATED TIME: " << (_filestoLoad[0].size()*((t2-t1)/1000.0)) << " seconds." << endl;
+	
 	} 
 
+void Pipeline::simulate()
+	{	   
+	    ut::Trace tr = ut::Trace("PIPELINE:simulate",__FILE__);
+
+		string param_error;
+	    Checker checker;
+	
+	   int total_loads = _filestoLoad.size(); 
+	   int total_files = _filestoLoad[0].size();
+
+	   if(total_files == 0)
+	   {
+	     tr.message("ERROR: No files found in the directory with the provided description.");
+	     exit(-1907);
+	   }
+	   for(size_t i=0;i<_filestoLoad.size();i++)
+	   {
+		   if(_filestoLoad[i].size()!=total_files){
+		   
+			   tr.message("ERROR: unequal number of files. Must supply same number of files for every channel");
+			   exit(-1908);
+		   }
+	   }
+
+
+	   end = _actionsList.end();
+
+		int n,no, total_actions;
+		int *nf = new int[5];
+		string action_name;
+		int action;
+		tr.message("Pipeline simulation starting...");
+			
+		it = this->_actionsList.begin();  //refresh my list
+		total_actions = 0;
+	//	tr.traceIsActive=false;
+		while ( it != end )
+		{
+
+			     action_name = (*it)->getCurrentAction();
+				 tr.message("Simulating :",action_name.c_str());
+				 action = this->event_sequence[total_actions];
+/**********************************************************************************************
+*  LOAD FUNCTIONS
+*
+*
+***********************************************************************************************/
+				// check if my action in the list is a load file
+				 if(action == FUNCTIONS::LOAD_FILE)
+				{
+						// pop the file
+				  	    string current_fname = this->_filestoLoad[0][0];
+						tr.message("Loading filename:",current_fname.c_str());
+						(*it)->addParameter("FILENAME", current_fname.c_str()); 
+				}
+/**********************************************************************************************
+*  WRITE IMAGE FILE
+*
+*
+***********************************************************************************************/
+				else
+				{
+					// check if my action in the list is a write file
+					if(action == FUNCTIONS::WRITE_FILE)
+					 {
+						 // pop the file
+						string current_fname = this->_filestoSave[0][0];
+						(*it)->addParameter("FILENAME", current_fname.c_str()); 
+					  }
+				 }
+				  
+				  
+				 if(!checker.checkAction(*(*it), param_error))
+				 {		   
+					 cout<< endl << "  ERROR: In parameters on function "<<action_name<<":"<< endl;
+					 cout<< param_error <<endl;
+					 exit(-2030);
+				} 
+				 /* Check if my action in the list is a write file
+				    Since is a simulation, all functions that write can check parameters
+				    but cannot be executed.
+					This is a limitation, but the other options are:
+						1) Delete everything in the same output directory...dangerous for the user!!
+						2) Delete the files generated in the first iteration.
+						   This option will be implemented in the version 0.8.
+				  */
+				 if(action != FUNCTIONS::WRITE_FILE && action != FUNCTIONS::ALL 
+					 && action!= FUNCTIONS::BASIC   &&  action != FUNCTIONS::HARALICK
+					 && action != FUNCTIONS ::MOMENT && action != FUNCTIONS::SHAPE) 
+				     { (*it)->execute(0); } 
+				  ++it;
+				  total_actions++;
+	   } // end while
+		// Delete all files from Output?
+		tr.message("You don't want to hear what I want to say...");
+		tr.message("Simulation succesfully executed");
+	
+	delete [] nf;
+	}
 void Pipeline::start(void){
 	   
 	    ut::Trace tr = ut::Trace("PIPELINE:start",__FILE__);
@@ -470,26 +562,8 @@ void Pipeline::start(void){
 	   unsigned int total_loads = _filestoLoad.size();
 	   unsigned int total_files = _filestoLoad[0].size();
 	   int *c_files = new int[total_loads];
-	   int *c_files_out;
 	 //  int *c_files_out_feat = new int[total_files];
 	   string current_fname, main_fname;
-
-
-	    if(total_files == 0)
-	   {
-	    tr.message("ERROR: No files found in the directory with the provided description.");
-	    exit(-1907);
-	   }
-	   
-	   for(unsigned int i=0;i<_filestoLoad.size();i++)
-	   {
-		   if(_filestoLoad[i].size()!=total_files){
-		   
-			   tr.message("ERROR: unequal number of files. Must supply same number of files for every channel");
-			   exit(-1908);
-		   }
-	   }
-
 	   end = _actionsList.end();
 
 	   // Counters for files start here
@@ -499,7 +573,7 @@ void Pipeline::start(void){
 	   }
 	    
 	   int total_writes = _filestoSave.size();
-	   c_files_out = new int[total_writes];
+	   int *c_files_out = new int[total_writes];
 	   for(int i=0;i< total_writes;i++)
 	   { 
 	     c_files_out[i]=0;
@@ -513,7 +587,7 @@ void Pipeline::start(void){
 
 
 		tr.message("Pipeline starting...");
-		for(int k=0;k<total_files;k++)
+		for(size_t k=0;k<total_files;k++)
 		{
 		    it = this->_actionsList.begin();  //refresh my list
 			cout<<".."<< k+1 <<" of "<<total_files<<endl;
@@ -541,14 +615,7 @@ void Pipeline::start(void){
 						(c_files[n])++;
 						n++;
 						tr.message("Loading filename:",current_fname.c_str());
-						if(k>0)
-						{
-						   (*it)->modifyParameterValue("FILENAME", new MStringType(current_fname,"FILENAME"));
-						}
-						else
-						{
-						  (*it)->addParameter("FILENAME", current_fname.c_str()); 
-						}				
+						(*it)->modifyParameterValue("FILENAME", new MStringType(current_fname,"FILENAME"));			
 				}
 /**********************************************************************************************
 *  WRITE IMAGE FILE
@@ -565,14 +632,7 @@ void Pipeline::start(void){
 						(c_files_out[no])++;
 						no++;
 						tr.message("Writing image to:",current_fname.c_str());
-						if(k>0)
-						{
-							(*it)->modifyParameterValue("FILENAME", new MStringType(current_fname,"FILENAME"));
-						}
-						else
-						{			
-						     (*it)->addParameter("FILENAME", current_fname.c_str()); 
-						}
+						(*it)->modifyParameterValue("FILENAME", new MStringType(current_fname,"FILENAME"));
 					}
 				 }
 	  
@@ -599,7 +659,7 @@ vector<string> Pipeline::getFilesFromDir(const char& dir,const char *_regexp)
 	vector<string> filestopipeline;
 
 	string hi;
-	char *_dir = (char *)malloc(250);
+	char *_dir = new char[512];
 	strcpy( _dir, &dir);
 	//strcat(_dir,"/");
 
@@ -645,7 +705,7 @@ vector<string> Pipeline::getFilesFromDir(const char& dir,const char *_regexp)
 vector<string> Pipeline::generateOutputFileNames(const char& dir,const char *_exp1,vector<string>_exp2,const char *date,bool counter,int tf)
 {
 	vector<string> filestosave;
-	char *_dir = (char *)malloc(512);
+	char *_dir = new char[512];
 	bool appnam= (!_exp2.empty());
   
 	int count = 0;
@@ -681,31 +741,31 @@ vector<string> Pipeline::generateOutputFileNames(const char& dir,const char *_ex
 	return filestosave;
 }
 
-void Pipeline::getBasicOptions(bitset<BIT_OPTIONS> &options,vector<string> &parameterNames,vector<MType *> &parameterValues)
+void Pipeline::getBasicOptions(bitset<BIT_OPTIONS> &options,vector<MType *> &parameterValues)
 {
-	vector<MType *>::iterator par_it = parameterValues.begin();		 
-		for(vector<string>::iterator parn_it= parameterNames.begin(); parn_it!= parameterNames.end(); parn_it++,par_it++)
+		 
+		for(vector<MType *>::iterator par_it = parameterValues.begin();	par_it!= parameterValues.end(); par_it++)
 			{			
-					if((*parn_it).compare("MEAN")==0)
+					if((*par_it)->getTag().compare("MEAN")==0)
 					 {
 						if((dynamic_cast<MBoolType *>(*par_it))->getValue())
 							options|=options.set(0);
 						continue;
 					 }
-					 if((*parn_it).compare("SD")==0)
+					 if((*par_it)->getTag().compare("SD")==0)
 					 {	
 						if((dynamic_cast<MBoolType *>(*par_it))->getValue())
 							options|=options.set(1);
 						continue;
 					 }
-					 if((*parn_it).compare("MAD")==0)
+					 if((*par_it)->getTag().compare("MAD")==0)
 					 {
 						
 						if((dynamic_cast<MBoolType *>(*par_it))->getValue())
 							options|=options.set(2);
 						continue;
 					 }
-					 if((*parn_it).compare("QUANTILES")==0)
+					 if((*par_it)->getTag().compare("QUANTILES")==0)
 					 {
 						
 						if((dynamic_cast<MBoolType *>(*par_it))->getValue())
@@ -715,31 +775,31 @@ void Pipeline::getBasicOptions(bitset<BIT_OPTIONS> &options,vector<string> &para
 			 }
 }
 
-void Pipeline::getShapeOptions(bitset<BIT_OPTIONS> &options,vector<string> &parameterNames,vector<MType *> &parameterValues)
+void Pipeline::getShapeOptions(bitset<BIT_OPTIONS> &options,vector<MType *> &parameterValues)
 {
-	vector<MType *>::iterator par_it = parameterValues.begin();		 
-		for(vector<string>::iterator parn_it= parameterNames.begin(); parn_it!= parameterNames.end(); parn_it++,par_it++)
+		 
+		for(vector<MType *>::iterator par_it = parameterValues.begin(); par_it!= parameterValues.end(); par_it++)
 			{			
-					if((*parn_it).compare("AREA")==0)
+					if((*par_it)->getTag().compare("AREA")==0)
 					 {
 						if((dynamic_cast<MBoolType *>(*par_it))->getValue())
 							options|=options.set(4);
 						continue;
 					 }
-					 if((*parn_it).compare("PERIMETER")==0)
+					 if((*par_it)->getTag().compare("PERIMETER")==0)
 					 {	
 						if((dynamic_cast<MBoolType *>(*par_it))->getValue())
 							options|=options.set(5);
 						continue;
 					 }
-					 if((*parn_it).compare("RADIUS")==0)
+					 if((*par_it)->getTag().compare("RADIUS")==0)
 					 {
 						
 						if((dynamic_cast<MBoolType *>(*par_it))->getValue())
 							options|=options.set(6);
 						continue;
 					 }
-					 if((*parn_it).compare("ROUNDNESS")==0)
+					 if((*par_it)->getTag().compare("ROUNDNESS")==0)
 					 {
 						
 						if((dynamic_cast<MBoolType *>(*par_it))->getValue())
@@ -750,31 +810,31 @@ void Pipeline::getShapeOptions(bitset<BIT_OPTIONS> &options,vector<string> &para
 }
 
 
-void Pipeline::getMomentOptions(bitset<BIT_OPTIONS> &options,vector<string> &parameterNames,vector<MType *> &parameterValues)
+void Pipeline::getMomentOptions(bitset<BIT_OPTIONS> &options,vector<MType *> &parameterValues)
 {
-	vector<MType *>::iterator par_it = parameterValues.begin();		 
-		for(vector<string>::iterator parn_it= parameterNames.begin(); parn_it!= parameterNames.end(); parn_it++,par_it++)
+		 
+		for(vector<MType *>::iterator par_it = parameterValues.begin(); par_it!= parameterValues.end(); par_it++)
 			{			
-					if((*parn_it).compare("CENTROID")==0)
+					if((*par_it)->getTag().compare("CENTROID")==0)
 					 {
 						if((dynamic_cast<MBoolType *>(*par_it))->getValue())
 							options|=options.set(8);
 						continue;
 					 }
-					 if((*parn_it).compare("AXIS")==0)
+					 if((*par_it)->getTag().compare("AXIS")==0)
 					 {	
 						if((dynamic_cast<MBoolType *>(*par_it))->getValue())
 							options|=options.set(9);
 						continue;
 					 }
-					 if((*parn_it).compare("ECCENTRICITY")==0)
+					 if((*par_it)->getTag().compare("ECCENTRICITY")==0)
 					 {
 						
 						if((dynamic_cast<MBoolType *>(*par_it))->getValue())
 							options|=options.set(10);
 						continue;
 					 }
-					 if((*parn_it).compare("THETA")==0)
+					 if((*par_it)->getTag().compare("THETA")==0)
 					 {
 						
 						if((dynamic_cast<MBoolType *>(*par_it))->getValue())
@@ -783,6 +843,32 @@ void Pipeline::getMomentOptions(bitset<BIT_OPTIONS> &options,vector<string> &par
 					 }
 			 }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 void Pipeline::getCommon(vector<vector<string>> files,vector<string> &common_names)
 {

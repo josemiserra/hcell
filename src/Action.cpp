@@ -7,6 +7,8 @@
  In the Action class all parameters are mapped to its type.
  The reason of place the input-types map here is because only Action makes use of this map
  during the setAction operation.
+ objects that need to be withdrawn or stored in the pool are from the type idT (Identifiers)
+
 */
 Action::TypesMap Action::initialize(){
 	 TypesMap amap;
@@ -16,11 +18,11 @@ Action::TypesMap Action::initialize(){
 	 amap["REGEXP"]=stringT;
 	 amap["WINDOWSNAME"]=stringT;
      amap["FILENAME"]=stringT;
-	 amap["OUTPUT"]=stringT;
+	 amap["OUTPUT"]=idT;
 	 amap["ASHOW"]=boolT;
 	 amap["DETECT_EMPTY"]=boolT;
 /** WRITE FILE **/	 
-	 amap["INPUT"]=stringT;
+	 amap["INPUT"]=idT;
 	 amap["FILEEXT"]=stringT;
 	 amap["P_COMPRESSIONLEVEL"]=intT;
 	 amap["FOUTPUT"]=stringT;
@@ -39,8 +41,8 @@ Action::TypesMap Action::initialize(){
 /**GAUSSIAN BLUR**/
 	amap["HEIGHT"]=intT;
 	amap["WIDTH"]=intT;
-	amap["SIGMA_X"]=intT;
-	amap["SIGMA_Y"]=intT;
+	amap["SIGMA_X"]=doubleT;
+	amap["SIGMA_Y"]=doubleT;
 
 /***DERIVATIVE FILTERS***/
 	// SOBEL
@@ -67,7 +69,7 @@ Action::TypesMap Action::initialize(){
 	amap["SIGMA"]=doubleT;
 
 /***MORPHOLOGICAL**/
-	amap["BRUSH"]=stringT;
+	amap["BRUSH"]=idT;
 	amap["OPERATION"]=stringT;
 	amap["ITERATIONS"]=intT;
 
@@ -86,21 +88,22 @@ Action::TypesMap Action::initialize(){
 	amap["CONSTANT"]=doubleT;
 	amap["METHOD"]=stringT;
 /** COMPOSITIONS****/
-	amap["RED_CHANNEL"]=stringT;
-	amap["GREEN_CHANNEL"]=stringT;
-	amap["BLUE_CHANNEL"]=stringT;
-	amap["INPUT_1"]=stringT;
-	amap["INPUT_2"]=stringT;
+	amap["RED_CHANNEL"]=idT;
+	amap["GREEN_CHANNEL"]=idT;
+	amap["BLUE_CHANNEL"]=idT;
+	amap["INPUT_1"]=idT;
+	amap["INPUT_2"]=idT;
 	amap["ALPHA_1"]=doubleT;
 	amap["ALPHA_2"]=doubleT;
 	amap["ALPHA"]=doubleT;
 	/** FLOODFILL**/
-    amap["SEEDS"]=stringT;
+    amap["SEEDS"]=idT;
 	amap["NEW_VALUE"]=stringT;
 	amap["LOW_DIFF"]=doubleT;
 	amap["UP_DIFF"]=doubleT;
-	amap["SAVE_OBJECTS"]=stringT;
-	amap["LOAD_OBJECTS"]=stringT;
+	amap["SAVE_OBJECTS"]=idT;
+	amap["SAVE_OBJ"]=idT;
+	amap["LOAD_OBJECTS"]=idT;
 	amap["LAMBDA"]=doubleT;
 	amap["PAINT_CONTOURS"]=boolT;
 
@@ -116,7 +119,7 @@ Action::TypesMap Action::initialize(){
 	amap["MAD"]=boolT;
 	amap["QUANTILES"]=boolT;
 	amap["SAVE_INDIVIDUAL"]=boolT;
-	amap["REFERENCE"]=stringT;
+	amap["REFERENCE"]=idT;
 	
 	amap["AREA"]=boolT;
 	amap["PERIMETER"]=boolT;
@@ -136,12 +139,12 @@ Action::TypesMap Action::initialize(){
 	/**SPLIT NUCLEI **/
 	amap["EXT"]=intT;
 	amap["TOL"]= doubleT;
-	amap["REFERENCE"]=stringT;
+	amap["REFERENCE"]=idT;
 	amap["METHOD"] = stringT;
-	amap["NUCLEI"] = stringT;
-	amap["LOAD_OBJECTS"]= stringT;
-	amap["LOAD_OBJECTS_1"]= stringT;
-	amap["LOAD_OBJECTS_2"]= stringT;
+	amap["NUCLEI"] = idT;
+	amap["LOAD_OBJECTS"]= idT;
+	amap["LOAD_OBJECTS_1"]= idT;
+	amap["LOAD_OBJECTS_2"]= idT;
 	amap["COEFFICIENT"]= doubleT;
 
 	/**FILTER OPTS**/
@@ -149,13 +152,29 @@ Action::TypesMap Action::initialize(){
 	amap["MAXIMUM"]=intT;
 	amap["BY"]=stringT;
 	/**OPERATORS **/
-	amap["FACTOR"]=stringT;   
-	amap["OUTPUT_FACTOR"]=stringT;
+	amap["FACTOR"]=doubleT;   
+	amap["OUTPUT_FACTOR"]=idT;
 
-	
+	/**PROPAGATE, WATERSHED**/
+	amap["MASK"]=idT;
+	amap["BACKGROUND"]=idT;
+	amap["FOREGROUND"]=idT;
+	amap["BIG_OBJECTS"]=idT;
+	amap["FRAG_OBJECTS"]=idT;
 /**GBLOB options**/
 	amap["SEQUENCE"]=intT;
 	amap["BETA"]=doubleT;
 
+	/** Convert **/
+	amap["DEPTH"]=intT;
+	amap["NORMALIZE"]=boolT;
+	/**HOUGH**/
+	amap["LINES"]=idT;
+	amap["RHO"]=doubleT;
+	amap["DTHETA"]=doubleT;
+	amap["THRESHOLD_INTERSECTIONS"]=intT;
+	amap["PROBABILISTIC"]=boolT;
+	amap["MIN_LINE_LENGTH"]=doubleT;
+	amap["MAX_LINE_GAP"]=doubleT;
 	return amap;
 }

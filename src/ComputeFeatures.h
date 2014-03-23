@@ -7,7 +7,6 @@
 #include <opencv2/opencv.hpp>
 #include "PModule.h"
 #include "MType.h"
-#include "MAllTypes.h"
 #include "Action.h"
 #include "utils.h"
 #include "FeatureCalculator.h"
@@ -27,13 +26,13 @@ class ComputeFeatures:
 		typedef  void(ComputeFeatures::*Function)(vector<MType *>,unsigned int pid); // function pointer type
 		static map<string, Function > tFunc;
 	    static FeatureCalculator *featcalc;
-
-		enum FILTER_OPTS{ SIZE, DIAMETER};
+		
+		
 
 	public:
 		static Writer *featureWriter;
-//		static map<string, int> filtertoOpt;
-
+		static map<string, int> eMap;
+		enum FILTER_OPTS{ SIZE, DIAMETER};
 	ComputeFeatures(void)
 	{
 	 tFunc["BASIC"] = &ComputeFeatures::_basicfeatures;
@@ -42,9 +41,11 @@ class ComputeFeatures:
 	 tFunc["MOMENT"] = &ComputeFeatures::_momentfeatures;
 	 tFunc["HARALICK"] = &ComputeFeatures::_haralickfeatures; 
 	 tFunc["ALL FEATURES"] = &ComputeFeatures::_allfeatures; 
-
+	// tFunc["NUMBER OF NEIGHBORS"] = &ComputeFeatures::_nneigh;
 	 featcalc =  FeatureCalculator::getInstance();
 	 
+	 eMap["SIZE"] = SIZE;
+	 eMap["DIAMETER"] = DIAMETER;
 	 
 
 	}
@@ -87,20 +88,15 @@ class ComputeFeatures:
 	 // append name 1
 	 // foutput name 2
      string foutput	= (dynamic_cast<MStringType*>(parValues[2]))->getValue(); 
-	 string objects	= (dynamic_cast<MStringType*>(parValues[3]))->getValue();  // imageName (output>
+	 string objects	= (dynamic_cast<MIdentifierType*>(parValues[3]))->getValue(pid);  // imageName (output>
     //  bool mad 4 // feature
     //  bool mean 5 // feature
 	//  bool quantiles 6 // feature
-	 string absref	= (dynamic_cast<MStringType*>(parValues[7]))->getValue();  // imageName (output>
+	 string ref	= (dynamic_cast<MIdentifierType*>(parValues[7]))->getValue(pid);  // imageName (output>
 	 bool save_ind = (dynamic_cast<MBoolType*>(parValues[8]))->getValue(); // feature
 	//  bool sd 9 // feature	
 
-	 string ref;
-	 this->combnames(objects,pid,objects);
-	 this->combnames(absref,pid,ref);
-	
-
-
+	 string absref = (dynamic_cast<MIdentifierType*>(parValues[7]))->getValueAsString();
 	 __basicfeatures(objects.c_str(),ref.c_str(),foutput.c_str(),save_ind);
 
 	}
@@ -143,19 +139,14 @@ void __basicfeatures(const char* objects, const char* ref,const char* absref, bo
 	 //  bool area 2 // feature
 	 // foutput name 3
 		 string foutput	= (dynamic_cast<MStringType*>(parValues[3]))->getValue(); 
-		string objects	= (dynamic_cast<MStringType*>(parValues[4]))->getValue();  // imageName (output>
+		string objects	= (dynamic_cast<MIdentifierType*>(parValues[4]))->getValue(pid);  // imageName (output>
     //  bool perimeter 5// feature
 	//  bool radius (6) 
-		string reference_image	= (dynamic_cast<MStringType*>(parValues[7]))->getValue();  // imageName (output>
+		string reference_image	= (dynamic_cast<MIdentifierType*>(parValues[7]))->getValue(pid);  // imageName (output>
 	 //  bool roundness (8) 
 	 bool save_ind = (dynamic_cast<MBoolType*>(parValues[9]))->getValue(); // feature
 	
-
-	 string ref;
-	 this->combnames(objects,pid,objects);
-	 this->combnames(reference_image,pid,ref);
-
-	 __shapefeatures(objects.c_str(),ref.c_str(),foutput.c_str(),save_ind);
+	 __shapefeatures(objects.c_str(),reference_image.c_str(),foutput.c_str(),save_ind);
 
 	}
 
@@ -202,25 +193,17 @@ void __shapefeatures(const char* objects, const char* ref,const char *absref, bo
 	//  bool eccentricity 4 // feature
 	//  foutput 5
 	 string foutput	= (dynamic_cast<MStringType*>(parValues[5]))->getValue(); 
-	 string objects	= (dynamic_cast<MStringType*>(parValues[6]))->getValue();  // imageName (output>
-	 string reference_image	= (dynamic_cast<MStringType*>(parValues[7]))->getValue();  // imageName (output>
+	 string objects	= (dynamic_cast<MIdentifierType*>(parValues[6]))->getValue(pid);  // imageName (output>
+	 string reference_image	= (dynamic_cast<MIdentifierType*>(parValues[7]))->getValue(pid);  // imageName (output>
 	 bool save_ind = (dynamic_cast<MBoolType*>(parValues[8]))->getValue(); // feature
 	 
-
-
-	 string ref;
-	 this->combnames(objects,pid,objects);
 	 bool woref = false;
-	 if(reference_image.compare("NO_REFERENCE")!=0) 
+	 if(!reference_image.compare("NO_REFERENCE")!=0) 
 	 {
-			 this->combnames(reference_image,pid,ref);
+			  woref=true;
 	 }
-	 else
-	 {
-	  woref=true;
-	 } 
 
-	 __momentfeatures(objects.c_str(),ref,foutput.c_str(),save_ind, woref);
+	 __momentfeatures(objects.c_str(),reference_image,foutput.c_str(),save_ind, woref);
 
 	}
 
@@ -282,10 +265,10 @@ void __momentfeatures(const char* objects, string &ref, const char* absref,bool 
 	{
      // append date 0
 	 // append name 1
-	 int bins = (dynamic_cast<MIntType*>(parValues[2]))->getValue();
+	 int bins = (dynamic_cast<MIntType*>(parValues[2]))->getValue(pid);
 	 string fname = (dynamic_cast<MStringType*>(parValues[3]))->getValue();
-	 string objects	=  (dynamic_cast<MStringType*>(parValues[4]))->getValue(); //
-	 string reference_image	= (dynamic_cast<MStringType*>(parValues[5]))->getValue();
+	 string objects	=  (dynamic_cast<MIdentifierType*>(parValues[4]))->getValue(pid); //
+	 string reference_image	= (dynamic_cast<MIdentifierType*>(parValues[5]))->getValue(pid);
 	 string scales = (dynamic_cast<MStringType*>(parValues[6]))->getValue();
 	 
 	 // Obtain number of scales
@@ -298,12 +281,8 @@ void __momentfeatures(const char* objects, string &ref, const char* absref,bool 
 		// cout<<pch<<endl;
 		pch = strtok (NULL, ",");
 	}
-
-	 string ref;
-	 this->combnames(objects,pid,objects);
-	 this->combnames(reference_image,pid,ref);
 	
-	 __haralickfeatures(objects.c_str(),ref.c_str(),_scales,bins,fname);
+	 __haralickfeatures(objects.c_str(),reference_image.c_str(),_scales,bins,fname);
 
 	}
 
@@ -445,19 +424,19 @@ void __haralickfeatures(const char* objects, const char* ref,vector<int> scales,
 void _filterobjects(std::vector<MType *> parValues,unsigned int pid)
 {
 	const char* opt =  (dynamic_cast<MStringType*>(parValues[0]))->getValue(); // by
-	string load_objects = (dynamic_cast<MStringType*>(parValues[1]))->getValue();
-	int max = (dynamic_cast<MIntType*>(parValues[2]))->getValue(); //output
-	int min = (dynamic_cast<MIntType*>(parValues[3]))->getValue(); //output
-	string save_objects = (dynamic_cast<MStringType*>(parValues[4]))->getValue();
+	string load_objects = (dynamic_cast<MIdentifierType*>(parValues[1]))->getValue(pid);
+	int max = (dynamic_cast<MIntType*>(parValues[2]))->getValue(pid); 
+	int min = (dynamic_cast<MIntType*>(parValues[3]))->getValue(pid); 
+	MIdentifierType* out = dynamic_cast<MIdentifierType*>(parValues[4]);
+	string save_objects = out->getValue(pid);
 	
-	this->combnames(load_objects,pid,load_objects);
-	this->combnames(save_objects,pid,save_objects);
-
 	int fopt;
 	if(strcmp(opt,"SIZE")==0) fopt = FILTER_OPTS::SIZE;
 	else fopt= FILTER_OPTS::DIAMETER;
 
 	__filterobjects(load_objects.c_str(),save_objects.c_str(),min,max,fopt);
+
+	out->refresh(pid);
 }
 
 void __filterobjects(const char *load_objects, const char *save_objects, int &min,int &max,int &opt)
@@ -508,17 +487,13 @@ COMPUTE ALL FEATURES
 	 bool basic = (dynamic_cast<MBoolType*>(parValues[2]))->getValue(); // feature
 	 string foutput	= (dynamic_cast<MStringType*>(parValues[3]))->getValue(); 
 	 bool haralick = (dynamic_cast<MBoolType*>(parValues[4]))->getValue();
-	 string objects	= (dynamic_cast<MStringType*>(parValues[5]))->getValue();  // loadObjects
+	 string objects	= (dynamic_cast<MIdentifierType*>(parValues[5]))->getValue(pid);  // loadObjects
 	 bool moment = (dynamic_cast<MBoolType*>(parValues[6]))->getValue();
-	 string reference_image	= (dynamic_cast<MStringType*>(parValues[7]))->getValue();  // imageName (output>
+	 string reference_image	= (dynamic_cast<MIdentifierType*>(parValues[7]))->getValue(pid);  // imageName (output>
 	 bool save_ind = (dynamic_cast<MBoolType*>(parValues[8]))->getValue(); // feature
 	 bool shape = (dynamic_cast<MBoolType*>(parValues[9]))->getValue();
 
-	 string ref;
-	 this->combnames(objects,pid,objects);
-	 this->combnames(reference_image,pid,ref);
-
-	 __allfeatures(objects.c_str(),ref,foutput.c_str(),save_ind,basic,shape,moment,haralick);
+	 __allfeatures(objects.c_str(),reference_image,foutput.c_str(),save_ind,basic,shape,moment,haralick);
 
 	}
 

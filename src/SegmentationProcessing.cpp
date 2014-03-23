@@ -179,7 +179,7 @@ int  SegmentationProcessing::__propagate(const char* seeds, const char* input,co
 	tr.printMatrixInfo("mask",*_mask);
 
 
-	if(image->channels()>1)
+	if(image->channels()>1) //normalize
 	{
 		cvtColor(*image,*image, CV_RGB2GRAY);
 		double minVal, maxVal;
@@ -217,7 +217,7 @@ int  SegmentationProcessing::__propagate(const char* seeds, const char* input,co
 				    i = obj->y;
 					labels_out[IJ(i,j)]= count;
 					dists[IJ(i,j)]=0.0;
-				}
+				} 
    }
 	
   /* if the pixel is already labeled (i.e, labeled in labels_in) and within a mask, 
@@ -389,7 +389,7 @@ return;
 
 /*****************************************************************************************************
 *  LABEL
-*  Given a binary image (8U) creates a vector of objects.
+*  Given a binary image (8U) creates a vector of objects by connected components.
 *******************************************************************************************************/
 
 int SegmentationProcessing::__label(const char* input, const char*output){
@@ -404,6 +404,11 @@ int SegmentationProcessing::__label(const char* input, const char*output){
 
 	 tr.message("\n Labeling image:");
 	 tr.printMatrixInfo("binary Im",*bin_im);
+	 if(bin_im->depth()!=CV_8U) 
+	 {
+	    cout<<"Only images of 8 bit (binary) can be labelled!" <<endl;
+		exit(-1984);
+	 }
 
 	for(int i = 0; i < bin_im->rows; i++)
 	{
@@ -422,6 +427,33 @@ int SegmentationProcessing::__label(const char* input, const char*output){
 
 	 return 0;
 }
+
+
+int SegmentationProcessing::__label(Mat &im,vloP &objects_out){
+	 
+	 ut::Trace tr = ut::Trace("label",__FILE__); 
+	
+	 Mat lab_copy;
+	 im.copyTo(lab_copy);
+	 unsigned int total_objs = 0;
+
+	 tr.message("\n Labeling image:");
+	 tr.printMatrixInfo("binary Im",im);
+
+	for(int i = 0; i < im.rows; i++)
+	{
+		const uchar* Mi = lab_copy.ptr<uchar>(i);
+		for(int j = 0; j < im.cols; j++)
+		{
+			if(Mi[j]!=0)
+			{
+			contaminate(objects_out,lab_copy,i,j,total_objs);
+			}
+		}
+	 }
+	 return 0;
+}
+
 
 
 /*****************************************************************************************************

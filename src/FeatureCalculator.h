@@ -2,6 +2,8 @@
 #ifndef _FEATURE_CALCULATOR_
 #define _FEATURE_CALCULATOR_
 
+#pragma warning( disable : 4244 )
+
 #include <iostream>
 #include <array> 
 #include <sstream>
@@ -12,7 +14,6 @@
 #include <opencv2/opencv.hpp>
 #include "PModule.h"
 #include "MType.h"
-#include "MAllTypes.h"
 #include "Action.h"
 #include "utils.h"
 
@@ -59,7 +60,7 @@ struct accumulator
         sum += x;
         T Mprev = M;
         M += (x - Mprev) / N;		 	
-        S += (x - Mprev) * (x - M);  // TODO: Review here...
+        S += (x - Mprev) * (x - M);  // TODO: Review here possible overflow
         if(S!=S) S=0.0;
 		return sum;
     }
@@ -540,6 +541,10 @@ void static shape(vloP &objects,vloP &contours, Mat &ref,bitset<4> &options,vect
 
 	}
 
+/*********************************************
+http://en.wikipedia.org/wiki/Image_moment
+
+***********************************************/
 void static moment(vloP &objects, Mat &reference,bitset<4> &options,vector<double> &gen_values,vector<vector<double>> &ind_values, bool woref)  // based on intensity
 	{
 		ut::Trace tr = ut::Trace("FeatureCalculator::moment",__FILE__);
@@ -548,6 +553,7 @@ void static moment(vloP &objects, Mat &reference,bitset<4> &options,vector<doubl
 		 accumulator<double,double> t1x,t1y,t1xy,t2x,t2y,vala;
 		 double m00,m01,m10,m11,m02,m20,val;
 		 double cx,cy,l1,l2,mu20,mu02,mu11,det,eccentricity,theta;
+		 double eigen1,eigen2;
 		 Point p;
 		 
 		 Mat ref2;
@@ -634,9 +640,11 @@ void static moment(vloP &objects, Mat &reference,bitset<4> &options,vector<doubl
 			mu11 = m11/m00 - cx * cy;
 		    
 			det = sqrt(4 * mu11*mu11 + (mu20 - mu02)*(mu20 - mu02));
-			theta = atan2(2 * mu11, (mu20 - mu02))/2;
-			l1 = sqrt((mu20 + mu02 + det)/2) * 4;
-            l2 = sqrt((mu20 + mu02 - det)/2) * 4;
+			theta = atan2(2 * mu11, (mu20 - mu02))*0.5;
+			eigen1 = (mu20 + mu02 + det)/2;
+			eigen2 = (mu20 + mu02 - det)/2;
+			l1 = sqrt(eigen1) * 4;
+            l2 = sqrt(eigen2) * 4;
             if(l1>0.0)
 				eccentricity = sqrt(1 - (l2*l2)/(l1*l1));
 			else
@@ -650,8 +658,8 @@ void static moment(vloP &objects, Mat &reference,bitset<4> &options,vector<doubl
 			if(options[1]) // major and minor axis
 			{
 				
-				temp.push_back(l1);
-				temp.push_back(l2);
+				temp.push_back(l1); // major
+				temp.push_back(l2); // minor
          
 			}	
 			if(options[2]) // eccentricity

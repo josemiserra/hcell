@@ -39,7 +39,6 @@ public:
 
 	Action* getAction(const char *MNAME,const char *FNAME,const char **nameparams,const char **params,int countP);
 
-
 private:
 	 static void initialize(void);
 };

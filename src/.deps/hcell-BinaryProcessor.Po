@@ -1,0 +1,6 @@
+src/hcell-BinaryProcessor.o: src/BinaryProcessor.cpp \
+ src/BinaryProcessor.h src/utils.h
+
+src/BinaryProcessor.h:
+
+src/utils.h:
